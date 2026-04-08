@@ -1,0 +1,226 @@
+'use client';
+
+import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import api from '@/lib/axios';
+import { toast } from '@/hooks/useToast';
+import { Card } from '@/components/ui/Card';
+import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import type { Scenario, Forecast, ForecastPoint } from '@/types';
+import { useAuthStore } from '@/store/authStore';
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from 'recharts';
+
+const SLIDERS = [
+  { key: 'demandGrowth', label: 'Demand Growth Rate' },
+  { key: 'commodityPrice', label: 'Commodity Price' },
+  { key: 'productionVolume', label: 'Production Volume' },
+  { key: 'exportVolume', label: 'Export Volume' },
+  { key: 'policyFactor', label: 'Policy Factor' },
+] as const;
+
+type SliderKey = (typeof SLIDERS)[number]['key'];
+
+function parseForecastJson(json?: string): ForecastPoint[] {
+  try {
+    const arr = JSON.parse(json || '[]');
+    return Array.isArray(arr)
+      ? arr.map((d: Record<string, number & string>) => ({
+          date: d.date,
+          value: d.value,
+          lower80: d.lower_80 ?? d.lower80 ?? d.value,
+          upper80: d.upper_80 ?? d.upper80 ?? d.value,
+          lower95: d.lower_95 ?? d.lower95 ?? d.value,
+          upper95: d.upper_95 ?? d.upper95 ?? d.value,
+        }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Scenario builder page with side-by-side baseline vs adjusted forecast charts
+ * and 5 parameter sliders.
+ */
+export default function ScenarioDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+
+  const [params, setParams] = useState<Record<SliderKey, number>>({
+    demandGrowth: 1.0,
+    commodityPrice: 1.0,
+    productionVolume: 1.0,
+    exportVolume: 1.0,
+    policyFactor: 1.0,
+  });
+  const [notes, setNotes] = useState('');
+  const [annotateSuccess, setAnnotateSuccess] = useState(false);
+
+  const { data: scenario, isLoading: loadingScenario } = useQuery<Scenario>({
+    queryKey: ['scenario', id],
+    queryFn: () => api.get(`/api/scenarios/${id}`).then((r) => r.data.data),
+    onSuccess: (s: Scenario) => { if (s.notes) setNotes(s.notes); },
+  });
+
+  const { data: baseForecast } = useQuery<Forecast>({
+    queryKey: ['forecast', scenario?.baseForecastId],
+    queryFn: () =>
+      api.get(`/api/forecasts/${scenario!.baseForecastId}`).then((r) => r.data.data),
+    enabled: !!scenario?.baseForecastId,
+  });
+
+  const annotateMutation = useMutation({
+    mutationFn: (payload: { notes: string; flagForReview: boolean }) =>
+      api.post(`/api/scenarios/${id}/annotate`, payload).then((r) => r.data.data),
+    onSuccess: (_: unknown, vars: { flagForReview: boolean }) => {
+      queryClient.invalidateQueries({ queryKey: ['scenario', id] });
+      setAnnotateSuccess(true);
+      setTimeout(() => setAnnotateSuccess(false), 3000);
+      toast.success(
+        vars.flagForReview ? 'Scenario flagged for review' : 'Scenario saved',
+        vars.flagForReview ? 'Executives can now review this scenario.' : 'Notes have been saved.'
+      );
+    },
+    onError: () => toast.error('Save failed', 'Could not save scenario annotations.'),
+  });
+
+  if (loadingScenario) return <LoadingSkeleton className="h-96 w-full m-6" />;
+  if (!scenario) return <p className="p-6 text-gray-500">Scenario not found.</p>;
+
+  const basePoints = parseForecastJson(baseForecast?.forecastJson);
+  const multiplier = Object.values(params).reduce((a, b) => a * b, 1);
+  const adjustedPoints = basePoints.map((p) => ({ ...p, value: p.value * multiplier }));
+
+  let recommendation = 'Demand outlook is stable. Current production levels remain appropriate.';
+  if (multiplier > 1.1)
+    recommendation = `Demand is projected to increase by ~${((multiplier - 1) * 100).toFixed(0)}%. Consider expanding production capacity and reviewing export commitments.`;
+  else if (multiplier < 0.9)
+    recommendation = `Demand is projected to decline by ~${((1 - multiplier) * 100).toFixed(0)}%. Review inventory levels and consider reducing export volumes.`;
+
+  const canFlag = user?.role === 'STRATEGIST' || user?.role === 'ADMIN';
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">{scenario.name}</h1>
+        {scenario.flaggedForReview && (
+          <span className="text-amber-600 text-sm font-medium mt-1 inline-block">
+            🚩 Flagged for Executive Review
+          </span>
+        )}
+      </div>
+
+      {/* Sliders */}
+      <Card className="p-5">
+        <h2 className="text-lg font-semibold mb-4">Scenario Parameters</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {SLIDERS.map(({ key, label }) => (
+            <div key={key}>
+              <div className="flex justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">{label}</label>
+                <span className="text-sm font-mono text-brand">{params[key].toFixed(2)}×</span>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.05"
+                value={params[key]}
+                onChange={(e) => setParams((p) => ({ ...p, [key]: parseFloat(e.target.value) }))}
+                className="w-full accent-brand"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>0.5×</span><span>1.0×</span><span>2.0×</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-gray-500">
+          Combined multiplier: <strong>{multiplier.toFixed(3)}×</strong>
+        </p>
+      </Card>
+
+      {/* Charts side-by-side */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card className="p-5">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Baseline Forecast</h3>
+          {basePoints.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">No base forecast data available.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={basePoints}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="value" stroke="#1a3a5c" dot={false} strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+
+        <Card className="p-5">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Adjusted Forecast ({multiplier.toFixed(2)}×)</h3>
+          {adjustedPoints.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">No base forecast data available.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={adjustedPoints}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="value" stroke="#e53e3e" dot={false} strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+      </div>
+
+      {/* Recommendation */}
+      <Card className={`p-4 border-l-4 ${multiplier > 1.1 ? 'border-l-green-500 bg-green-50' : multiplier < 0.9 ? 'border-l-red-500 bg-red-50' : 'border-l-blue-500 bg-blue-50'}`}>
+        <p className="text-sm font-medium text-gray-800">💡 Recommendation</p>
+        <p className="text-sm text-gray-600 mt-1">{recommendation}</p>
+      </Card>
+
+      {/* Annotations */}
+      <Card className="p-5 space-y-4">
+        <h2 className="text-lg font-semibold">Notes & Actions</h2>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={4}
+          placeholder="Add strategic notes…"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={() =>
+              annotateMutation.mutate({ notes, flagForReview: scenario.flaggedForReview })
+            }
+            disabled={annotateMutation.isPending}
+            className="px-4 py-2 bg-brand text-white rounded-lg text-sm hover:bg-brand-light disabled:opacity-50"
+          >
+            Save Notes
+          </button>
+          {canFlag && (
+            <button
+              onClick={() => annotateMutation.mutate({ notes, flagForReview: true })}
+              disabled={annotateMutation.isPending || scenario.flaggedForReview}
+              className="px-4 py-2 border border-amber-400 text-amber-700 rounded-lg text-sm hover:bg-amber-50 disabled:opacity-50"
+            >
+              🚩 Flag for Executive Review
+            </button>
+          )}
+        </div>
+        {annotateSuccess && (
+          <p className="text-green-600 text-sm">Saved successfully.</p>
+        )}
+      </Card>
+    </div>
+  );
+}
