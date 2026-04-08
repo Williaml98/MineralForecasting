@@ -1,0 +1,48 @@
+# Environment
+.env
+
+# Java / Maven
+backend/target/
+backend/.mvn/repository/
+*.class
+*.jar
+*.war
+*.ear
+
+# Python
+ml-service/__pycache__/
+ml-service/*.pyc
+ml-service/*.pyo
+ml-service/.venv/
+ml-service/venv/
+ml-service/saved_models/
+ml-service/.pytest_cache/
+__pycache__/
+*.pyc
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# IDE
+.idea/
+.vscode/
+*.iml
+eclipse-workspace/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+frontend/coverage/
+backend/build/reports/

@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\HP\\\\Downloads\\\\Final_Year\\\\.claude\\\\worktrees\\\\exciting-chatterjee\\\\frontend\\\\src\\\\app\\\\\\(dashboard\\)\")",
+      "Bash(ls \"C:\\\\Users\\\\HP\\\\Downloads\\\\Final_Year\\\\.claude\\\\worktrees\\\\exciting-chatterjee\\\\frontend\\\\src\\\\app\\\\\\(dashboard\\)\\\\admin\")",
+      "Bash(find \"C:\\\\Users\\\\HP\\\\Downloads\\\\Final_Year\\\\.claude\\\\worktrees\\\\exciting-chatterjee\\\\frontend\\\\src\\\\app\\\\\\(dashboard\\)\" -type f)",
+      "Bash(ls \"C:\\\\Users\\\\HP\\\\Downloads\\\\Final_Year\\\\.claude\\\\worktrees\\\\exciting-chatterjee\\\\frontend\\\\src\\\\app\\\\\\(dashboard\\)\\\\preprocessing\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(rm -f build.gradle settings.gradle gradlew gradlew.bat)",
+      "Bash(rm -rf gradle)"
+    ]
+  }
+}

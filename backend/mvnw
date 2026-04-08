@@ -1,0 +1,38 @@
+#!/bin/sh
+# Maven Wrapper script
+# ----------------------------------------------------------------------------
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements. See NOTICE for additional information.
+# ----------------------------------------------------------------------------
+
+set -e
+
+MAVEN_WRAPPER_PROPERTIES_PATH=".mvn/wrapper/maven-wrapper.properties"
+
+if [ -f "$MAVEN_WRAPPER_PROPERTIES_PATH" ]; then
+  DISTRIBUTION_URL=$(grep distributionUrl "$MAVEN_WRAPPER_PROPERTIES_PATH" | cut -d= -f2-)
+fi
+
+MAVEN_USER_HOME="${MAVEN_USER_HOME:-${HOME}/.m2}"
+MAVEN_WRAPPER_DIR="${MAVEN_USER_HOME}/wrapper"
+DIST_FILENAME=$(basename "$DISTRIBUTION_URL")
+DIST_DIR="${MAVEN_WRAPPER_DIR}/dists/${DIST_FILENAME%.zip}"
+
+if [ ! -d "$DIST_DIR" ]; then
+  mkdir -p "$DIST_DIR"
+  TMP_DOWNLOAD="${DIST_DIR}/tmp.zip"
+  echo "Downloading Maven from $DISTRIBUTION_URL"
+  if command -v curl > /dev/null; then
+    curl -fsSL -o "$TMP_DOWNLOAD" "$DISTRIBUTION_URL"
+  elif command -v wget > /dev/null; then
+    wget -q -O "$TMP_DOWNLOAD" "$DISTRIBUTION_URL"
+  else
+    echo "ERROR: Neither curl nor wget found. Please install Maven manually."
+    exit 1
+  fi
+  unzip -q "$TMP_DOWNLOAD" -d "$DIST_DIR"
+  rm "$TMP_DOWNLOAD"
+fi
+
+MAVEN_HOME=$(find "$DIST_DIR" -maxdepth 1 -type d | grep -v "^$DIST_DIR$" | head -1)
+exec "${MAVEN_HOME}/bin/mvn" "$@"
