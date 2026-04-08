@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers import preprocess, train, forecast
 
 app = FastAPI(
-    title="BF Mining — ML Forecasting Service",
+    title="BF Mining - ML Forecasting Service",
     version="1.0.0",
     description="Machine learning forecasting service for mineral demand prediction",
 )

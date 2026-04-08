@@ -7,7 +7,23 @@
       "Bash(ls \"C:\\\\Users\\\\HP\\\\Downloads\\\\Final_Year\\\\.claude\\\\worktrees\\\\exciting-chatterjee\\\\frontend\\\\src\\\\app\\\\\\(dashboard\\)\\\\preprocessing\")",
       "mcp__Claude_Preview__preview_start",
       "Bash(rm -f build.gradle settings.gradle gradlew gradlew.bat)",
-      "Bash(rm -rf gradle)"
+      "Bash(rm -rf gradle)",
+      "Bash(python -c ':*)",
+      "Bash(find \"C:/Users/HP/Downloads/Final_Year/.claude/worktrees/exciting-chatterjee/ml-service\" -name \"__pycache__\" -type d -exec rm -rf {} +)",
+      "Bash(python -c \"import fastapi; print\\('fastapi OK:', fastapi.__version__\\)\")",
+      "Bash(python -c \"import sys; print\\('\\\\n'.join\\(sys.path\\)\\)\")",
+      "WebFetch(domain:www.indexmundi.com)",
+      "WebFetch(domain:www.usgs.gov)",
+      "WebFetch(domain:pubs.usgs.gov)",
+      "WebFetch(domain:www.lme.com)",
+      "WebFetch(domain:www.imf.org)",
+      "WebFetch(domain:www.worldbank.org)",
+      "WebFetch(domain:thedocs.worldbank.org)",
+      "WebFetch(domain:databank.worldbank.org)",
+      "Bash(where python:*)",
+      "Bash(where py:*)",
+      "Read(//c/Users/HP/AppData/Local/Programs/Python//**)",
+      "Bash(ls /c/Python*)"
     ]
   }
 }

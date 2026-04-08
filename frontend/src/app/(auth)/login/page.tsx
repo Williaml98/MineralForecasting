@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import api from '@/lib/axios';
+import { toast } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/authStore';
 
 const schema = z.object({
@@ -35,11 +36,13 @@ export default function LoginPage() {
     try {
       const { data } = await api.post('/api/auth/login', values);
       if (data.data?.mustChangePassword) {
+        toast.warning('Password change required', 'Please set a new password to continue.');
         router.push('/change-password');
       } else {
         // Fetch current user profile
         const userRes = await api.get('/api/users/me').catch(() => null);
         if (userRes) setUser(userRes.data.data);
+        toast.success('Welcome back!', `Signed in successfully.`);
         router.push('/dashboard');
       }
     } catch (err: unknown) {
