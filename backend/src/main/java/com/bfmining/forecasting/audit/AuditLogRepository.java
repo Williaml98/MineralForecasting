@@ -23,25 +23,25 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
      */
     @Query(value = """
         SELECT * FROM audit_logs
-        WHERE (:userId::uuid IS NULL OR user_id = :userId::uuid)
+        WHERE (CAST(:userId AS uuid) IS NULL OR user_id = CAST(:userId AS uuid))
           AND (:actionType IS NULL OR action_type = :actionType)
-          AND (:from::timestamp IS NULL OR created_at >= :from::timestamp)
-          AND (:to::timestamp IS NULL OR created_at <= :to::timestamp)
+          AND (CAST(:dateFrom AS timestamp) IS NULL OR created_at >= CAST(:dateFrom AS timestamp))
+          AND (CAST(:dateTo AS timestamp) IS NULL OR created_at <= CAST(:dateTo AS timestamp))
         ORDER BY created_at DESC
         """,
         countQuery = """
         SELECT COUNT(*) FROM audit_logs
-        WHERE (:userId::uuid IS NULL OR user_id = :userId::uuid)
+        WHERE (CAST(:userId AS uuid) IS NULL OR user_id = CAST(:userId AS uuid))
           AND (:actionType IS NULL OR action_type = :actionType)
-          AND (:from::timestamp IS NULL OR created_at >= :from::timestamp)
-          AND (:to::timestamp IS NULL OR created_at <= :to::timestamp)
+          AND (CAST(:dateFrom AS timestamp) IS NULL OR created_at >= CAST(:dateFrom AS timestamp))
+          AND (CAST(:dateTo AS timestamp) IS NULL OR created_at <= CAST(:dateTo AS timestamp))
         """,
         nativeQuery = true)
     Page<AuditLog> search(
             @Param("userId") String userId,
             @Param("actionType") String actionType,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to,
+            @Param("dateFrom") LocalDateTime from,
+            @Param("dateTo") LocalDateTime to,
             Pageable pageable);
 
     long countByCreatedAtAfter(LocalDateTime since);

@@ -116,16 +116,18 @@ public class TrainingSimulator {
             @SuppressWarnings("unchecked")
             Map<String, Object> metrics = (Map<String, Object>) body.get("metrics");
             String metricsJson = objectMapper.writeValueAsString(metrics);
+            String modelPath = (String) body.get("model_path");
 
             model.setStatus("TRAINED");
             model.setMetricsJson(metricsJson);
+            model.setModelPath(modelPath);
             modelRepository.save(model);
             log.info("Model {} training completed. Metrics: {}", modelId, metricsJson);
 
         } catch (Exception e) {
             log.error("Training failed for model {}: {}", modelId, e.getMessage(), e);
-            model.setStatus("FAILED");
-            modelRepository.save(model);
+            // Delete the model record so failed training does not appear in the table
+            modelRepository.delete(model);
         }
     }
 
@@ -218,9 +220,9 @@ public class TrainingSimulator {
                 int q = toInt(hyperparams.get("q"), 1);
                 payload.put("order", List.of(p, d, q));
             }
-            case "prophet" -> {
-                double cps = toDouble(hyperparams.get("changepoint_prior_scale"), 0.05);
-                payload.put("changepoint_prior_scale", cps);
+            case "ets" -> {
+                int sp = toInt(hyperparams.get("seasonal_periods"), 12);
+                payload.put("seasonal_periods", sp);
             }
             case "lstm" -> {
                 payload.put("units", toInt(hyperparams.get("units"), 64));

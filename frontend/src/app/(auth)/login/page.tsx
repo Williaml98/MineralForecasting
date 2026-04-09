@@ -17,7 +17,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 /**
- * Login page — entry point for all users. On success, redirects to the dashboard
+ * Login page - entry point for all users. On success, redirects to the dashboard
  * or the forced password-change page if the user's flag is set.
  */
 export default function LoginPage() {

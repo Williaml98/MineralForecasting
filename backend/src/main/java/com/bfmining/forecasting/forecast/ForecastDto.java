@@ -26,6 +26,9 @@ public class ForecastDto {
     /** UUID of the trained model used to produce this forecast. */
     private UUID modelId;
 
+    /** Human-readable name of the model used to produce this forecast. */
+    private String modelName;
+
     /** Number of months covered by this forecast. */
     private int horizonMonths;
 

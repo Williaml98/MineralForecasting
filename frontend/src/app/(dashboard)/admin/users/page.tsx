@@ -166,7 +166,7 @@ export default function UsersPage() {
               <tbody className="divide-y divide-gray-100">
                 {users.map((u) => (
                   <tr key={u.id} className={`hover:bg-gray-50 transition-colors ${!u.active ? 'opacity-60' : ''}`}>
-                    {/* Name — inline editable */}
+                    {/* Name -inline editable */}
                     <td className="px-4 py-3">
                       {editingId === u.id ? (
                         <div className="flex items-center gap-1">

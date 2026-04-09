@@ -62,15 +62,15 @@ export default function DatasetDetailPage() {
 
   const metaRows: MetaRow[] = [
     { label: 'Dataset Name', value: dataset.name, icon: FileText },
-    { label: 'Source', value: dataset.source ?? '—', icon: Server },
+    { label: 'Source', value: dataset.source ?? '-', icon: Server },
     { label: 'Version', value: `v${dataset.version}`, icon: Hash },
-    { label: 'Row Count', value: dataset.rowCount != null ? dataset.rowCount.toLocaleString() : '—', icon: Hash },
+    { label: 'Row Count', value: dataset.rowCount != null ? dataset.rowCount.toLocaleString() : '-', icon: Hash },
     {
       label: 'Uploaded At',
       value: new Date(dataset.uploadedAt).toLocaleString(),
       icon: Calendar,
     },
-    { label: 'Uploaded By', value: dataset.uploadedBy ?? '—', icon: Server },
+    { label: 'Uploaded By', value: dataset.uploadedBy ?? '-', icon: Server },
   ];
 
   return (

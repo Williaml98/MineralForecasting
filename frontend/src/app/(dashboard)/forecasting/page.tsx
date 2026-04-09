@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
@@ -12,6 +13,7 @@ import {
   Plus,
   Trash2,
   TrendingUp,
+  FileDown,
 } from 'lucide-react';
 import api from '@/lib/axios';
 import { toast } from '@/hooks/useToast';
@@ -31,19 +33,29 @@ const statusConfig: Record<string, {
 };
 
 function parseMetric(metricsJson: string | undefined, key: string): string {
-  if (!metricsJson) return '—';
+  if (!metricsJson) return 'N/A';
   try {
     const metrics = JSON.parse(metricsJson);
     const val = metrics[key];
-    if (val == null) return '—';
+    if (val == null) return 'N/A';
     return typeof val === 'number' ? val.toFixed(4) : String(val);
   } catch {
-    return '—';
+    return 'N/A';
   }
+}
+
+function parseMetricRaw(metricsJson: string | undefined, key: string): number | null {
+  if (!metricsJson) return null;
+  try {
+    const m = JSON.parse(metricsJson);
+    const v = m[key];
+    return typeof v === 'number' ? v : null;
+  } catch { return null; }
 }
 
 export default function ForecastingPage() {
   const queryClient = useQueryClient();
+  const [exportingReport, setExportingReport] = useState(false);
 
   const { data: models, isLoading } = useQuery<TrainedModel[]>({
     queryKey: ['models'],
@@ -70,6 +82,77 @@ export default function ForecastingPage() {
 
   const activeModel = models?.find((m) => m.active);
 
+  const exportReport = async () => {
+    if (!models || models.length === 0) return;
+    setExportingReport(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const PAGE_W = 297, PAGE_H = 210, MARGIN = 14, ROW_H = 8;
+      let y = 0;
+
+      doc.setFillColor(26, 58, 92);
+      doc.rect(0, 0, PAGE_W, 18, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+      doc.text('BF Mining Group Ltd', MARGIN, 11);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text('AI-Driven Mineral Demand Forecasting System', MARGIN, 16);
+      doc.setFontSize(8);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, PAGE_W - MARGIN, 11, { align: 'right' });
+
+      y = 26;
+      doc.setTextColor(26, 58, 92); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+      doc.text('Model Performance Report', MARGIN, y);
+      y += 5;
+      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
+      doc.text(`Total models: ${models.length}  |  Active model: ${activeModel?.name ?? 'None'}`, MARGIN, y);
+      y += 8;
+
+      const COL_WIDTHS = [60, 30, 30, 35, 35, 35, 25];
+      const headers = ['Model Name', 'Algorithm', 'Status', 'MAE', 'RMSE', 'MAPE (%)', 'Active'];
+      doc.setFillColor(240, 244, 248);
+      doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, ROW_H, 'F');
+      doc.setTextColor(60, 80, 100); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+      let x = MARGIN + 1;
+      headers.forEach((h, i) => { doc.text(h, x, y + 5); x += COL_WIDTHS[i]; });
+      y += ROW_H;
+
+      doc.setFont('helvetica', 'normal');
+      models.forEach((m, idx) => {
+        if (y + ROW_H > PAGE_H - 12) { doc.addPage(); y = MARGIN; }
+        if (idx % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, ROW_H, 'F'); }
+        doc.setTextColor(50, 50, 50); doc.setFontSize(8);
+        const mae = parseMetricRaw(m.metricsJson, 'mae');
+        const rmse = parseMetricRaw(m.metricsJson, 'rmse');
+        const mape = parseMetricRaw(m.metricsJson, 'mape');
+        const cells = [m.name, m.algorithm, m.status,
+          mae != null ? mae.toFixed(4) : 'N/A',
+          rmse != null ? rmse.toFixed(4) : 'N/A',
+          mape != null ? mape.toFixed(2) : 'N/A',
+          m.active ? 'Yes' : 'No'];
+        x = MARGIN + 1;
+        cells.forEach((cell, i) => { doc.text(String(cell).slice(0, 30), x, y + 5); x += COL_WIDTHS[i]; });
+        doc.setDrawColor(230, 230, 230);
+        doc.line(MARGIN, y + ROW_H, PAGE_W - MARGIN, y + ROW_H);
+        y += ROW_H;
+      });
+
+      doc.setFillColor(240, 244, 248);
+      doc.rect(0, PAGE_H - 8, PAGE_W, 8, 'F');
+      doc.setTextColor(120, 120, 120); doc.setFontSize(7);
+      doc.text('CONFIDENTIAL - BF Mining Group Ltd - Internal Use Only', MARGIN, PAGE_H - 3);
+      doc.text(`Page 1 of 1`, PAGE_W - MARGIN, PAGE_H - 3, { align: 'right' });
+
+      doc.save(`BFMining_ModelReport_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error(err);
+      alert('Report export failed.');
+    } finally {
+      setExportingReport(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -77,13 +160,23 @@ export default function ForecastingPage() {
           <h1 className="text-2xl font-bold text-gray-900">Forecasting Engine</h1>
           <p className="text-sm text-gray-500 mt-1">Train, compare, and manage forecasting models</p>
         </div>
-        <Link
-          href="/forecasting/train"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Train New Model
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportReport}
+            disabled={exportingReport || !models || models.length === 0}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <FileDown className="w-4 h-4" />
+            {exportingReport ? 'Generating…' : 'Export Report'}
+          </button>
+          <Link
+            href="/forecasting/train"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Train New Model
+          </Link>
+        </div>
       </div>
 
       {/* Active model banner */}
@@ -175,7 +268,7 @@ export default function ForecastingPage() {
                           {m.active ? (
                             <Badge variant="success">Active</Badge>
                           ) : (
-                            <span className="text-gray-300 text-xs">—</span>
+                            <span className="text-gray-300 text-xs">N/A</span>
                           )}
                         </td>
                         <td className="py-3">

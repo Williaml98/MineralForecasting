@@ -25,7 +25,8 @@
       "Read(//c/Users/HP/AppData/Local/Programs/Python//**)",
       "Bash(ls /c/Python*)",
       "Bash(xargs grep:*)",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(npm list:*)"
     ]
   }
 }

@@ -134,6 +134,7 @@ public class ModelService {
                 .version(model.getVersion())
                 .jobId(model.getJobId())
                 .status(model.getStatus())
+                .modelPath(model.getModelPath())
                 .build();
     }
 }

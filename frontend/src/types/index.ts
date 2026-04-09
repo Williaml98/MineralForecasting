@@ -40,7 +40,7 @@ export interface Pipeline {
 export interface TrainedModel {
   id: string;
   name: string;
-  algorithm: 'ARIMA' | 'PROPHET' | 'LSTM';
+  algorithm: 'ARIMA' | 'ETS' | 'LSTM';
   datasetId?: string;
   pipelineId?: string;
   hyperparamsJson?: string;
@@ -56,6 +56,7 @@ export interface TrainedModel {
 export interface Forecast {
   id: string;
   modelId: string;
+  modelName?: string;
   horizonMonths: number;
   forecastJson?: string;
   confidenceIntervalsJson?: string;

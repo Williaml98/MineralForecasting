@@ -34,7 +34,7 @@ const FEATURES = [
   {
     icon: '🔒',
     title: 'Role-Based Access Control',
-    desc: 'Four distinct roles — Analyst, Strategist, Executive, Admin — each with precisely scoped access to modules and actions.',
+    desc: 'Four distinct roles - Analyst, Strategist, Executive, Admin - each with precisely scoped access to modules and actions.',
   },
   {
     icon: '📋',
@@ -183,7 +183,7 @@ export default function LandingPage() {
 
         <div className="relative max-w-7xl mx-auto px-6 text-center">
           <span className="inline-block px-4 py-1.5 mb-6 text-xs font-semibold tracking-widest uppercase rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-            BF Mining Group Ltd — Final Year Project 2026
+            BF Mining Group Ltd - Final Year Project 2026
           </span>
           <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6">
             AI-Driven Mineral<br />
@@ -192,7 +192,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="max-w-2xl mx-auto text-lg md:text-xl text-blue-100 leading-relaxed mb-10">
-            A full-stack analytics platform that combines historical data ingestion, machine learning forecasting, and strategic decision support — built for the mining and commodities sector.
+            A full-stack analytics platform that combines historical data ingestion, machine learning forecasting, and strategic decision support - built for the mining and commodities sector.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link href="/login"
@@ -250,7 +250,7 @@ export default function LandingPage() {
                 </div>
                 {/* Chart area */}
                 <div className="bg-slate-700/40 rounded-xl p-4 h-40 relative overflow-hidden">
-                  <div className="text-xs text-slate-400 mb-2">Copper Demand Forecast — 12 Month Horizon</div>
+                  <div className="text-xs text-slate-400 mb-2">Copper Demand Forecast - 12 Month Horizon</div>
                   <svg viewBox="0 0 400 80" className="w-full h-24" preserveAspectRatio="none">
                     {/* CI band */}
                     <path d="M0,60 C50,55 100,50 150,45 C200,40 250,35 300,38 C350,41 380,45 400,43 L400,30 C380,28 350,25 300,22 C250,19 200,22 150,28 C100,34 50,38 0,42 Z"
@@ -289,7 +289,7 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <span className="text-xs font-semibold tracking-widest uppercase text-blue-700">What It Does</span>
             <h2 className="text-4xl font-extrabold text-gray-900 mt-3">Everything you need to forecast mineral demand</h2>
-            <p className="text-gray-500 mt-4 max-w-xl mx-auto">From raw data ingestion to board-ready insights — one platform, zero guesswork.</p>
+            <p className="text-gray-500 mt-4 max-w-xl mx-auto">From raw data ingestion to board-ready insights - one platform, zero guesswork.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((f) => (
@@ -311,7 +311,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
             <span className="text-xs font-semibold tracking-widest uppercase text-blue-700">The Workflow</span>
-            <h2 className="text-4xl font-extrabold text-gray-900 mt-3">From raw data to strategic decision — in 4 steps</h2>
+            <h2 className="text-4xl font-extrabold text-gray-900 mt-3">From raw data to strategic decision - in 4 steps</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
             {/* Connector line */}
@@ -335,7 +335,7 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <span className="text-xs font-semibold tracking-widest uppercase text-blue-700">System Modules</span>
             <h2 className="text-4xl font-extrabold text-gray-900 mt-3">Eight modules, one cohesive platform</h2>
-            <p className="text-gray-500 mt-4 max-w-xl mx-auto">Each module is role-gated — users only see what's relevant to their function.</p>
+            <p className="text-gray-500 mt-4 max-w-xl mx-auto">Each module is role-gated - users only see what's relevant to their function.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {MODULES.map((m) => (
