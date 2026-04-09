@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -58,7 +58,7 @@ export default function TrainModelPage() {
   const queryClient = useQueryClient();
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<Algorithm>('ARIMA');
   const [trainingModelId, setTrainingModelId] = useState<string | null>(null);
-  const [pollCount, setPollCount] = useState(0);
+  const prevStatusRef = useRef<string | undefined>(undefined);
 
   const { data: datasets } = useQuery<Dataset[]>({
     queryKey: ['datasets'],
@@ -74,7 +74,7 @@ export default function TrainModelPage() {
   const { data: trainingModel } = useQuery<TrainedModel>({
     queryKey: ['model', trainingModelId],
     queryFn: () => api.get(`/api/models/${trainingModelId}`).then((r) => r.data?.data ?? r.data),
-    enabled: !!trainingModelId && trainingModel?.status !== 'TRAINED' && trainingModel?.status !== 'FAILED',
+    enabled: !!trainingModelId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       if (status === 'TRAINED' || status === 'FAILED') return false;
@@ -114,7 +114,7 @@ export default function TrainModelPage() {
         hyperparams.units = data.units;
         hyperparams.epochs = data.epochs;
       }
-      return api.post('/api/models/train', {
+      return api.post('/api/models', {
         name: data.name,
         algorithm: data.algorithm,
         datasetId: data.datasetId,
@@ -127,7 +127,11 @@ export default function TrainModelPage() {
       queryClient.invalidateQueries({ queryKey: ['models'] });
       toast.info('Training started', `Model "${model.name}" is being trained.`);
     },
-    onError: () => toast.error('Training failed to start', 'Check your dataset and pipeline configuration.'),
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? 'Check your dataset and pipeline configuration.';
+      toast.error('Training failed to start', msg);
+    },
   });
 
   const onSubmit = (data: FormData) => {
@@ -138,8 +142,12 @@ export default function TrainModelPage() {
   const isDone = trainingStatus === 'TRAINED' || trainingStatus === 'FAILED';
 
   useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = trainingStatus;
+    // Only fire toast when status genuinely transitions to a terminal state
+    if (trainingStatus === prev) return;
     if (trainingStatus === 'TRAINED') {
-      toast.success('Training complete', 'Your model is ready. You can now generate forecasts.');
+      toast.success('Training complete! 🎉', 'Your model is ready. You can now generate forecasts.');
     } else if (trainingStatus === 'FAILED') {
       toast.error('Training failed', 'Check your data and hyperparameter configuration.');
     }
@@ -235,12 +243,24 @@ export default function TrainModelPage() {
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="">Select a pipeline...</option>
-                {pipelines?.filter((p) => p.status === 'COMPLETED').map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} (v{p.version})</option>
+                {pipelines?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} (v{p.version}) — {p.status === 'COMPLETED' ? '✓ Ready' : p.status}
+                  </option>
                 ))}
               </select>
               {errors.pipelineId && (
                 <p className="text-xs text-red-500 mt-1">{errors.pipelineId.message}</p>
+              )}
+              {pipelines && pipelines.length > 0 && pipelines.every((p) => p.status !== 'COMPLETED') && (
+                <p className="text-xs text-amber-600 mt-1">
+                  ⚠ No pipeline has been run yet. Open your pipeline and click <strong>Run Pipeline</strong> to prepare it for training.
+                </p>
+              )}
+              {pipelines && pipelines.length === 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  No pipelines found. <a href="/preprocessing/new" className="underline">Create a pipeline</a> first.
+                </p>
               )}
             </div>
           </CardContent>

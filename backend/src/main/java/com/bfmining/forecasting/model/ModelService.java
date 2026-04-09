@@ -19,8 +19,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ModelService {
 
-    /** Repository for persisting and querying {@link TrainedModel} entities. */
     private final TrainedModelRepository modelRepository;
+
+    /** Separate bean used to run async training simulation without self-invocation issues. */
+    private final TrainingSimulator trainingSimulator;
 
     /**
      * Returns all trained models in the system.
@@ -48,15 +50,21 @@ public class ModelService {
     }
 
     /**
-     * Initiates training of a new model by creating a TrainedModel record
-     * with status "TRAINING" and a randomly generated job identifier.
+     * Initiates training of a new model. Saves the record with status "TRAINING",
+     * then triggers async simulation that transitions it to "TRAINED" after a delay.
      *
      * @param req    the training request containing algorithm, dataset, and hyperparameters
      * @param userId the UUID of the user initiating training
-     * @return the created model DTO
+     * @return the created model DTO with status "TRAINING"
+     * @throws IllegalArgumentException if a model with the same name already exists
      */
     @AuditAction("MODEL_TRAIN")
     public ModelDto trainModel(TrainModelRequest req, UUID userId) {
+        if (modelRepository.existsByName(req.getName())) {
+            throw new IllegalArgumentException(
+                    "A model named \"" + req.getName() + "\" already exists. Please choose a different name.");
+        }
+
         TrainedModel model = TrainedModel.builder()
                 .name(req.getName())
                 .algorithm(req.getAlgorithm())
@@ -68,7 +76,13 @@ public class ModelService {
                 .jobId(UUID.randomUUID().toString())
                 .status("TRAINING")
                 .build();
-        return toDto(modelRepository.save(model));
+
+        TrainedModel saved = modelRepository.save(model);
+
+        // Delegate to a separate bean so @Async proxy is properly applied
+        trainingSimulator.callMlServiceAndComplete(saved.getId());
+
+        return toDto(saved);
     }
 
     /**
@@ -84,12 +98,10 @@ public class ModelService {
         TrainedModel target = modelRepository.findById(modelId)
                 .orElseThrow(() -> new EntityNotFoundException("Model not found with id: " + modelId));
 
-        // Deactivate all currently active models
         List<TrainedModel> activeModels = modelRepository.findByIsActiveTrueOrderByTrainedAtDesc();
         activeModels.forEach(m -> m.setActive(false));
         modelRepository.saveAll(activeModels);
 
-        // Activate the target model
         target.setActive(true);
         return toDto(modelRepository.save(target));
     }
@@ -107,12 +119,6 @@ public class ModelService {
         modelRepository.deleteById(id);
     }
 
-    /**
-     * Converts a {@link TrainedModel} entity to a {@link ModelDto}.
-     *
-     * @param model the entity to convert
-     * @return the corresponding DTO
-     */
     private ModelDto toDto(TrainedModel model) {
         return ModelDto.builder()
                 .id(model.getId())

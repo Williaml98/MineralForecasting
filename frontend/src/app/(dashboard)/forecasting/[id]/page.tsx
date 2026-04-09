@@ -33,7 +33,7 @@ export default function ModelDetailPage() {
 
   const { data: model, isLoading } = useQuery<TrainedModel>({
     queryKey: ['model', id],
-    queryFn: () => api.get(`/api/models/${id}`).then((r) => r.data.data),
+    queryFn: () => api.get(`/api/models/${id}`).then((r) => r.data?.data ?? r.data),
   });
 
   if (isLoading) return <LoadingSkeleton className="h-64 w-full m-6" />;

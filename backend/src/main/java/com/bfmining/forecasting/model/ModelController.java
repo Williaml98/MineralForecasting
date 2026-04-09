@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.security.Principal;
+import com.bfmining.forecasting.user.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -40,9 +42,8 @@ public class ModelController {
     @PreAuthorize("hasAnyRole('ADMIN','ANALYST')")
     public ResponseEntity<ModelDto> trainModel(
             @Valid @RequestBody TrainModelRequest request,
-            Principal principal) {
-        UUID userId = UUID.fromString(principal.getName());
-        ModelDto dto = modelService.trainModel(request, userId);
+            @AuthenticationPrincipal User currentUser) {
+        ModelDto dto = modelService.trainModel(request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 

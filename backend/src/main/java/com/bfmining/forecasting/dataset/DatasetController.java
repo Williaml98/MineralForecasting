@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.security.Principal;
+import com.bfmining.forecasting.user.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,9 +41,8 @@ public class DatasetController {
     @PreAuthorize("hasAnyRole('ADMIN','ANALYST')")
     public ResponseEntity<DatasetDto> uploadDataset(
             @RequestParam("file") MultipartFile file,
-            Principal principal) {
-        UUID userId = UUID.fromString(principal.getName());
-        DatasetDto dto = datasetService.uploadDataset(file, userId);
+            @AuthenticationPrincipal User currentUser) {
+        DatasetDto dto = datasetService.uploadDataset(file, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 

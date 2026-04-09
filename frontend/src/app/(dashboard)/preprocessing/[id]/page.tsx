@@ -20,11 +20,11 @@ export default function PipelineDetailPage() {
 
   const { data: pipeline, isLoading } = useQuery<Pipeline>({
     queryKey: ['pipeline', id],
-    queryFn: () => api.get(`/api/preprocessing/pipelines/${id}`).then((r) => r.data.data),
+    queryFn: () => api.get(`/api/preprocessing/pipelines/${id}`).then((r) => r.data?.data ?? r.data),
   });
 
   const runMutation = useMutation({
-    mutationFn: () => api.post(`/api/preprocessing/run/${id}`).then((r) => r.data.data),
+    mutationFn: () => api.post(`/api/preprocessing/pipelines/run/${id}`).then((r) => r.data?.data ?? r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pipeline', id] });
       setSuccess(true);
@@ -96,6 +96,8 @@ export default function PipelineDetailPage() {
             className="px-4 py-2 text-sm border rounded-lg disabled:opacity-40">Previous</button>
           {activeStep < STEPS.length - 1 ? (
             <button onClick={() => setActiveStep((s) => s + 1)} className="px-4 py-2 text-sm bg-brand text-white rounded-lg">Next</button>
+          ) : pipeline.status === 'COMPLETED' ? (
+            <span className="px-6 py-2 text-sm bg-green-100 text-green-700 rounded-lg font-medium">✓ Already Run</span>
           ) : (
             <button onClick={() => runMutation.mutate()} disabled={runMutation.isPending}
               className="px-6 py-2 text-sm bg-green-600 text-white rounded-lg disabled:opacity-50">
@@ -104,7 +106,12 @@ export default function PipelineDetailPage() {
           )}
         </div>
       </Card>
-      {success && <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-green-700 text-sm">Pipeline executed successfully.</div>}
+      {(success || pipeline.status === 'COMPLETED') && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-green-700 text-sm flex items-center gap-2">
+          <span>✓</span>
+          <span>Pipeline is <strong>ready</strong> — you can now select it when training a model.</span>
+        </div>
+      )}
     </div>
   );
 }

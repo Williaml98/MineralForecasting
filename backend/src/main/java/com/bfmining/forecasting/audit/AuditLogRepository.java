@@ -16,16 +16,29 @@ import java.util.UUID;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, UUID> {
 
-    @Query("""
-        SELECT a FROM AuditLog a
-        WHERE (:userId IS NULL OR a.userId = :userId)
-          AND (:actionType IS NULL OR a.actionType = :actionType)
-          AND (:from IS NULL OR a.createdAt >= :from)
-          AND (:to IS NULL OR a.createdAt <= :to)
-        ORDER BY a.createdAt DESC
-        """)
+    /**
+     * Native query avoids PostgreSQL "could not determine data type of parameter"
+     * error that occurs when null UUID/timestamp params are passed in JPQL with
+     * the (:param IS NULL OR ...) pattern.
+     */
+    @Query(value = """
+        SELECT * FROM audit_logs
+        WHERE (:userId::uuid IS NULL OR user_id = :userId::uuid)
+          AND (:actionType IS NULL OR action_type = :actionType)
+          AND (:from::timestamp IS NULL OR created_at >= :from::timestamp)
+          AND (:to::timestamp IS NULL OR created_at <= :to::timestamp)
+        ORDER BY created_at DESC
+        """,
+        countQuery = """
+        SELECT COUNT(*) FROM audit_logs
+        WHERE (:userId::uuid IS NULL OR user_id = :userId::uuid)
+          AND (:actionType IS NULL OR action_type = :actionType)
+          AND (:from::timestamp IS NULL OR created_at >= :from::timestamp)
+          AND (:to::timestamp IS NULL OR created_at <= :to::timestamp)
+        """,
+        nativeQuery = true)
     Page<AuditLog> search(
-            @Param("userId") UUID userId,
+            @Param("userId") String userId,
             @Param("actionType") String actionType,
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
