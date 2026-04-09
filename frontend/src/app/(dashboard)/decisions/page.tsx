@@ -38,12 +38,12 @@ const SEVERITY_STYLES: Record<string, { card: string; badge: string; border: str
 export default function DecisionsPage() {
   const { data: recommendations = [], isLoading: loadingRecs } = useQuery<Recommendation[]>({
     queryKey: ['recommendations'],
-    queryFn: () => api.get('/api/decisions/recommendations').then((r) => r.data.data),
+    queryFn: () => api.get('/api/decisions/recommendations').then((r) => r.data?.data ?? r.data ?? []),
   });
 
   const { data: warnings = [], isLoading: loadingWarnings } = useQuery<Recommendation[]>({
     queryKey: ['warnings'],
-    queryFn: () => api.get('/api/decisions/warnings').then((r) => r.data.data),
+    queryFn: () => api.get('/api/decisions/warnings').then((r) => r.data?.data ?? r.data ?? []),
   });
 
   return (

@@ -53,8 +53,8 @@ def _detect_model_type(model_path: str) -> str:
     lower = model_path.lower()
     if "arima" in lower:
         return "ARIMA"
-    if "prophet" in lower:
-        return "Prophet"
+    if "ets" in lower:
+        return "ETS"
     if "lstm" in lower:
         return "LSTM"
     return "Unknown"
@@ -101,18 +101,19 @@ def _generate_forecast_data(model, model_type: str, horizon_months: int, last_da
             )
         return points
 
-    if model_type == "Prophet":
-        forecast_df = model.predict(periods=horizon_months, freq="MS")
+    if model_type == "ETS":
+        values = model.predict(horizon_months)
         points = []
-        for _, row in forecast_df.tail(horizon_months).iterrows():
+        for date, val in zip(dates, values):
+            std_est = abs(val) * 0.06 + 1e-6
             points.append(
                 ForecastPoint(
-                    date=pd.Timestamp(row["ds"]).strftime("%Y-%m-%d"),
-                    value=round(float(row["yhat"]), 4),
-                    lower_80=round(float(row.get("yhat_lower", row["yhat"] * 0.9)), 4),
-                    upper_80=round(float(row.get("yhat_upper", row["yhat"] * 1.1)), 4),
-                    lower_95=round(float(row.get("yhat_lower", row["yhat"] * 0.85)), 4),
-                    upper_95=round(float(row.get("yhat_upper", row["yhat"] * 1.15)), 4),
+                    date=date,
+                    value=round(float(val), 4),
+                    lower_80=round(float(val - 1.28 * std_est), 4),
+                    upper_80=round(float(val + 1.28 * std_est), 4),
+                    lower_95=round(float(val - 1.96 * std_est), 4),
+                    upper_95=round(float(val + 1.96 * std_est), 4),
                 )
             )
         return points
@@ -222,13 +223,13 @@ async def explain_model(model_id: str) -> dict[str, Any]:
             "feature_importance": {},
             "note": "ARIMA uses past values and error terms for forecasting.",
         }
-    if "prophet" in lower:
+    if "ets" in lower:
         return {
-            "model_type": "Prophet",
-            "explanation_type": "additive_decomposition",
-            "components": ["trend", "seasonality", "holidays"],
+            "model_type": "ETS",
+            "explanation_type": "exponential_smoothing",
+            "components": ["level", "trend", "seasonality"],
             "feature_importance": {},
-            "note": "Prophet decomposes the time series into interpretable components.",
+            "note": "Holt-Winters ETS decomposes the series into level, additive trend, and additive seasonal components.",
         }
     if "lstm" in lower:
         return {

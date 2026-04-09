@@ -70,12 +70,12 @@ export default function ModelDetailPage() {
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-wide">Trained At</p>
           <p className="font-semibold mt-1">
-            {model.trainedAt ? new Date(model.trainedAt).toLocaleDateString() : '—'}
+            {model.trainedAt ? new Date(model.trainedAt).toLocaleDateString() : 'N/A'}
           </p>
         </div>
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-wide">Job ID</p>
-          <p className="font-semibold mt-1 text-xs truncate">{model.jobId ?? '—'}</p>
+          <p className="font-semibold mt-1 text-xs truncate">{model.jobId ?? 'N/A'}</p>
         </div>
       </Card>
 
@@ -89,7 +89,7 @@ export default function ModelDetailPage() {
           <Card key={key} className="p-5">
             <p className="text-xs text-gray-500">{desc}</p>
             <p className="text-3xl font-bold text-brand mt-2">
-              {metrics[key] != null ? metrics[key].toFixed(4) : '—'}
+              {metrics[key] != null ? metrics[key].toFixed(4) : 'N/A'}
             </p>
             <p className="text-sm font-medium text-gray-700 mt-1">{label}</p>
           </Card>

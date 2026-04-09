@@ -109,7 +109,7 @@ export default function PipelineDetailPage() {
       {(success || pipeline.status === 'COMPLETED') && (
         <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-green-700 text-sm flex items-center gap-2">
           <span>✓</span>
-          <span>Pipeline is <strong>ready</strong> — you can now select it when training a model.</span>
+          <span>Pipeline is <strong>ready</strong> - you can now select it when training a model.</span>
         </div>
       )}
     </div>

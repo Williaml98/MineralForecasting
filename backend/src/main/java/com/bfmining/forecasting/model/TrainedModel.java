@@ -90,4 +90,8 @@ public class TrainedModel {
     @Builder.Default
     @Column(nullable = false)
     private String status = "PENDING";
+
+    /** Path to the saved model file on the ML service filesystem. Set after training completes. */
+    @Column(name = "model_path")
+    private String modelPath;
 }

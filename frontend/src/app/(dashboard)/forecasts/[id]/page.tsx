@@ -7,7 +7,7 @@ import api from '@/lib/axios';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
-import { ForecastChart } from '@/components/ForecastChart';
+import ForecastChart from '@/components/ForecastChart';
 import type { Forecast, ForecastPoint } from '@/types';
 import { formatDate } from '@/lib/utils';
 
@@ -22,7 +22,7 @@ export default function ForecastDetailPage() {
 
   const { data: forecast, isLoading } = useQuery<Forecast>({
     queryKey: ['forecast', id],
-    queryFn: () => api.get(`/api/forecasts/${id}`).then((r) => r.data.data),
+    queryFn: () => api.get(`/api/forecasts/${id}`).then((r) => r.data?.data ?? r.data),
   });
 
   const handleExport = async () => {
@@ -117,12 +117,12 @@ export default function ForecastDetailPage() {
       {/* Metadata */}
       <Card className="p-5 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Model ID</p>
-          <p className="font-mono mt-1">{forecast.modelId}</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide">Model</p>
+          <p className="font-medium mt-1">{forecast.modelName ?? forecast.modelId}</p>
         </div>
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-wide">Forecast ID</p>
-          <p className="font-mono mt-1">{forecast.id}</p>
+          <p className="font-mono text-xs mt-1 text-gray-500">{forecast.id}</p>
         </div>
       </Card>
     </div>

@@ -105,7 +105,7 @@ export default function PreprocessingPage() {
                           </div>
                         </td>
                         <td className="py-3 pr-4 text-gray-500 font-mono text-xs">
-                          {p.datasetId ? p.datasetId.slice(0, 8) + '...' : '—'}
+                          {p.datasetId ? p.datasetId.slice(0, 8) + '...' : '-'}
                         </td>
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-1.5">

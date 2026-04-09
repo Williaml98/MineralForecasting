@@ -86,14 +86,14 @@ export default function NewPipelinePage() {
         </p>
       </div>
 
-      {/* What is a pipeline — info box */}
+      {/* What is a pipeline - info box */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
         <p className="font-semibold mb-1">What does a pipeline do?</p>
         <ul className="space-y-1 text-blue-700">
-          <li>• <strong>Handles missing values</strong> — fills gaps in your time series data</li>
-          <li>• <strong>Removes outliers</strong> — detects and handles extreme data points</li>
-          <li>• <strong>Normalises values</strong> — scales data so the model trains better (important for LSTM)</li>
-          <li>• <strong>Maps columns</strong> — tells the system which column is the date and which is the value</li>
+          <li>• <strong>Handles missing values</strong> - fills gaps in your time series data</li>
+          <li>• <strong>Removes outliers</strong> - detects and handles extreme data points</li>
+          <li>• <strong>Normalises values</strong> - scales data so the model trains better (important for LSTM)</li>
+          <li>• <strong>Maps columns</strong> - tells the system which column is the date and which is the value</li>
         </ul>
       </div>
 
@@ -116,7 +116,7 @@ export default function NewPipelinePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Dataset <span className="text-gray-400 font-normal">(optional — can link later)</span></label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dataset <span className="text-gray-400 font-normal">(optional - can link later)</span></label>
               <select
                 value={datasetId}
                 onChange={(e) => setDatasetId(e.target.value)}
@@ -128,7 +128,7 @@ export default function NewPipelinePage() {
                 ))}
               </select>
               {validatedDatasets.length === 0 && (
-                <p className="text-xs text-amber-600 mt-1">No validated datasets yet — upload a CSV first.</p>
+                <p className="text-xs text-amber-600 mt-1">No validated datasets yet - upload a CSV first.</p>
               )}
             </div>
 

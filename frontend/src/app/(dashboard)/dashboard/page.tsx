@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useState } from 'react';
 import {
   Brain,
   Calendar,
@@ -17,6 +18,7 @@ import {
   AlertTriangle,
   AlertCircle,
   Info,
+  FileDown,
 } from 'lucide-react';
 import api from '@/lib/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -25,18 +27,11 @@ import { Badge } from '@/components/ui/Badge';
 import type { TrainedModel, Forecast, ForecastPoint, Scenario } from '@/types';
 
 interface Warning {
-  id: string;
-  message: string;
-  severity: 'CRITICAL' | 'WARNING' | 'INFO';
-  createdAt: string;
-}
-
-interface Recommendation {
-  id: string;
   title: string;
   description: string;
   severity: 'CRITICAL' | 'WARNING' | 'INFO';
 }
+
 
 const formatDate = (dateStr: string) => {
   try {
@@ -63,12 +58,16 @@ function WarningBanner({ warning }: { warning: Warning }) {
   return (
     <div className={`flex items-start gap-3 p-3 rounded-lg border ${config.bg}`}>
       <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${config.iconColor}`} />
-      <p className={`text-sm ${config.text}`}>{warning.message}</p>
+      <div>
+        <p className={`text-sm font-medium ${config.text}`}>{warning.title}</p>
+        <p className={`text-xs mt-0.5 ${config.text} opacity-80`}>{warning.description}</p>
+      </div>
     </div>
   );
 }
 
 export default function DashboardPage() {
+  const [exportingReport, setExportingReport] = useState(false);
   const { data: models, isLoading: loadingModels } = useQuery<TrainedModel[]>({
     queryKey: ['models'],
     queryFn: () => api.get('/api/models').then((r) => r.data?.data ?? r.data ?? []),
@@ -95,7 +94,16 @@ export default function DashboardPage() {
   let forecastPoints: ForecastPoint[] = [];
   if (latestForecast?.forecastJson) {
     try {
-      forecastPoints = JSON.parse(latestForecast.forecastJson);
+      const raw = JSON.parse(latestForecast.forecastJson);
+      // ML service uses snake_case (lower_80) but recharts needs camelCase (lower80)
+      forecastPoints = Array.isArray(raw) ? raw.map((d: Record<string, number | string>) => ({
+        date: d.date as string,
+        value: d.value as number,
+        lower80: (d.lower_80 ?? d.lower80) as number,
+        upper80: (d.upper_80 ?? d.upper80) as number,
+        lower95: (d.lower_95 ?? d.lower95) as number,
+        upper95: (d.upper_95 ?? d.upper95) as number,
+      })) : [];
     } catch {
       forecastPoints = [];
     }
@@ -106,7 +114,7 @@ export default function DashboardPage() {
   const kpis = [
     {
       label: 'Active Model',
-      value: activeModel?.name ?? '—',
+      value: activeModel?.name ?? '-',
       sub: activeModel?.algorithm ?? 'No active model',
       icon: Brain,
       color: 'text-blue-600',
@@ -122,7 +130,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Next-Period Demand',
-      value: firstValue !== null ? formatValue(firstValue) : '—',
+      value: firstValue !== null ? formatValue(firstValue) : '-',
       sub: forecastPoints.length > 0 ? `As of ${formatDate(forecastPoints[0].date)}` : 'No forecast data',
       icon: TrendingUp,
       color: 'text-green-600',
@@ -130,7 +138,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Active Warnings',
-      value: warnings ? String(warnings.length) : '—',
+      value: warnings ? String(warnings.length) : '-',
       sub: warnings && warnings.length > 0 ? 'Requires attention' : 'All clear',
       icon: AlertTriangle,
       color: warnings && warnings.length > 0 ? 'text-amber-600' : 'text-gray-400',
@@ -140,11 +148,104 @@ export default function DashboardPage() {
 
   const recentScenarios = scenarios?.slice(0, 5) ?? [];
 
+  const exportDashboardReport = async () => {
+    setExportingReport(true);
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const PAGE_W = 210, PAGE_H = 297, MARGIN = 14;
+      let y = 0;
+
+      doc.setFillColor(26, 58, 92); doc.rect(0, 0, PAGE_W, 18, 'F');
+      doc.setTextColor(255, 255, 255); doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+      doc.text('BF Mining Group Ltd', MARGIN, 11);
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text('AI-Driven Mineral Demand Forecasting System', MARGIN, 16);
+      doc.setFontSize(8);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, PAGE_W - MARGIN, 11, { align: 'right' });
+
+      y = 28;
+      doc.setTextColor(26, 58, 92); doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+      doc.text('Executive Dashboard Report', MARGIN, y);
+      y += 7;
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
+      doc.text(`Report Date: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}`, MARGIN, y);
+      y += 12;
+
+      // KPI Section
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(26, 58, 92);
+      doc.text('Key Performance Indicators', MARGIN, y); y += 6;
+      doc.setFillColor(240, 244, 248); doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 40, 'F');
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50);
+      const kpiLines = [
+        `Active Model: ${activeModel?.name ?? 'None'} (${activeModel?.algorithm ?? '-'})`,
+        `Forecast Horizon: ${latestForecast ? `${latestForecast.horizonMonths} months` : 'No forecast'}`,
+        `Next-Period Demand: ${firstValue !== null ? formatValue(firstValue) : 'N/A'}`,
+        `Active Warnings: ${warnings?.length ?? 0}`,
+        `Total Models Trained: ${models?.length ?? 0}`,
+        `Total Scenarios: ${scenarios?.length ?? 0}`,
+      ];
+      kpiLines.forEach((line, i) => {
+        doc.text(line, MARGIN + 4, y + 7 + i * 6);
+      });
+      y += 46;
+
+      if (warnings && warnings.length > 0) {
+        doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(26, 58, 92);
+        doc.text('Active Warnings', MARGIN, y); y += 6;
+        warnings.forEach((w) => {
+          doc.setFillColor(w.severity === 'CRITICAL' ? 255 : w.severity === 'WARNING' ? 255 : 219,
+            w.severity === 'CRITICAL' ? 220 : w.severity === 'WARNING' ? 237 : 234,
+            w.severity === 'CRITICAL' ? 220 : w.severity === 'WARNING' ? 213 : 254);
+          doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 12, 'F');
+          doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(50, 50, 50);
+          doc.text(`[${w.severity}] ${w.title}`, MARGIN + 3, y + 5);
+          doc.setFont('helvetica', 'normal');
+          const desc = doc.splitTextToSize(w.description, PAGE_W - MARGIN * 2 - 6)[0] ?? '';
+          doc.text(desc, MARGIN + 3, y + 10);
+          y += 14;
+        });
+        y += 4;
+      }
+
+      if (recentScenarios.length > 0) {
+        doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(26, 58, 92);
+        doc.text('Recent Scenarios', MARGIN, y); y += 6;
+        recentScenarios.forEach((s, idx) => {
+          if (idx % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, 8, 'F'); }
+          doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50);
+          doc.text(`${s.name}${s.flaggedForReview ? ' [Flagged]' : ''}`, MARGIN + 2, y + 5);
+          doc.text(new Date(s.createdAt).toLocaleDateString(), PAGE_W - MARGIN - 2, y + 5, { align: 'right' });
+          y += 8;
+        });
+      }
+
+      doc.setFillColor(240, 244, 248); doc.rect(0, PAGE_H - 8, PAGE_W, 8, 'F');
+      doc.setTextColor(120, 120, 120); doc.setFontSize(7);
+      doc.text('CONFIDENTIAL - BF Mining Group Ltd - Internal Use Only', MARGIN, PAGE_H - 3);
+      doc.text('Page 1 of 1', PAGE_W - MARGIN, PAGE_H - 3, { align: 'right' });
+
+      doc.save(`BFMining_DashboardReport_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error(err); alert('Report export failed.');
+    } finally { setExportingReport(false); }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Executive Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Mineral demand forecasting overview</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Executive Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Mineral demand forecasting overview</p>
+        </div>
+        <button
+          onClick={exportDashboardReport}
+          disabled={exportingReport}
+          className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+        >
+          <FileDown className="w-4 h-4" />
+          {exportingReport ? 'Generating…' : 'Export Report'}
+        </button>
       </div>
 
       {/* KPI Cards */}
@@ -175,7 +276,14 @@ export default function DashboardPage() {
         <div className="xl:col-span-2">
           <Card>
             <CardHeader>
+              <div className="flex items-center justify-between">
               <CardTitle>Forecast Overview</CardTitle>
+              {activeModel && latestForecast && (
+                <span className="text-xs text-gray-400">
+                  Model: <span className="font-medium text-gray-600">{activeModel.name}</span> · {latestForecast.horizonMonths}-month horizon
+                </span>
+              )}
+            </div>
             </CardHeader>
             <CardContent>
               {loadingForecasts ? (
@@ -235,7 +343,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {warnings.slice(0, 4).map((w, i) => (
-                    <WarningBanner key={w.id ?? i} warning={w} />
+                    <WarningBanner key={i} warning={w} />
                   ))}
                 </div>
               )}

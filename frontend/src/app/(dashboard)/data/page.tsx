@@ -233,10 +233,10 @@ export default function DataManagementPage() {
                             <span className="font-medium text-gray-800">{ds.name}</span>
                           </div>
                         </td>
-                        <td className="py-3 pr-4 text-gray-500">{ds.source ?? '—'}</td>
+                        <td className="py-3 pr-4 text-gray-500">{ds.source ?? '-'}</td>
                         <td className="py-3 pr-4 text-gray-500">v{ds.version}</td>
                         <td className="py-3 pr-4 text-gray-500">
-                          {ds.rowCount != null ? ds.rowCount.toLocaleString() : '—'}
+                          {ds.rowCount != null ? ds.rowCount.toLocaleString() : '-'}
                         </td>
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-1.5">

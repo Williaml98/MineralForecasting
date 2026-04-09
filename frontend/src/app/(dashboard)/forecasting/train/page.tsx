@@ -15,37 +15,37 @@ import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 import type { Dataset, Pipeline, TrainedModel } from '@/types';
 
-type Algorithm = 'ARIMA' | 'PROPHET' | 'LSTM';
+type Algorithm = 'ARIMA' | 'ETS' | 'LSTM';
 
 const algorithmInfo: Record<Algorithm, { title: string; description: string; color: string }> = {
   ARIMA: {
     title: 'ARIMA',
-    description: 'Autoregressive Integrated Moving Average — best for stationary time series with clear trends.',
+    description: 'Autoregressive Integrated Moving Average -best for stationary time series with clear trends.',
     color: 'blue',
   },
-  PROPHET: {
-    title: 'Prophet',
-    description: 'Facebook\'s decomposable model — handles seasonality and holiday effects robustly.',
+  ETS: {
+    title: 'Holt-Winters ETS',
+    description: 'Triple Exponential Smoothing -decomposes level, additive trend, and seasonal cycles. Ideal for mineral demand data with yearly patterns.',
     color: 'purple',
   },
   LSTM: {
     title: 'LSTM',
-    description: 'Long Short-Term Memory neural network — captures complex non-linear temporal patterns.',
+    description: 'Long Short-Term Memory neural network -captures complex non-linear temporal patterns.',
     color: 'amber',
   },
 };
 
 const schema = z.object({
   name: z.string().min(1, 'Model name is required'),
-  algorithm: z.enum(['ARIMA', 'PROPHET', 'LSTM']),
+  algorithm: z.enum(['ARIMA', 'ETS', 'LSTM']),
   datasetId: z.string().min(1, 'Dataset is required'),
   pipelineId: z.string().min(1, 'Pipeline is required'),
   // ARIMA
   p: z.coerce.number().min(0).max(5).optional(),
   d: z.coerce.number().min(0).max(2).optional(),
   q: z.coerce.number().min(0).max(5).optional(),
-  // Prophet
-  changepoint_prior_scale: z.coerce.number().min(0.001).max(0.5).optional(),
+  // ETS
+  seasonal_periods: z.coerce.number().min(4).max(52).optional(),
   // LSTM
   units: z.coerce.number().min(16).max(256).optional(),
   epochs: z.coerce.number().min(10).max(200).optional(),
@@ -95,7 +95,7 @@ export default function TrainModelPage() {
       p: 1,
       d: 1,
       q: 1,
-      changepoint_prior_scale: 0.05,
+      seasonal_periods: 12,
       units: 64,
       epochs: 50,
     },
@@ -108,8 +108,8 @@ export default function TrainModelPage() {
         hyperparams.p = data.p;
         hyperparams.d = data.d;
         hyperparams.q = data.q;
-      } else if (data.algorithm === 'PROPHET') {
-        hyperparams.changepoint_prior_scale = data.changepoint_prior_scale;
+      } else if (data.algorithm === 'ETS') {
+        hyperparams.seasonal_periods = data.seasonal_periods ?? 12;
       } else {
         hyperparams.units = data.units;
         hyperparams.epochs = data.epochs;
@@ -125,7 +125,7 @@ export default function TrainModelPage() {
     onSuccess: (model: TrainedModel) => {
       setTrainingModelId(model.id);
       queryClient.invalidateQueries({ queryKey: ['models'] });
-      toast.info('Training started', `Model "${model.name}" is being trained.`);
+      toast.info('Training started', `Model "${model.name}" is being trained. You will be redirected when done.`);
     },
     onError: (err: unknown) => {
       const msg = (err as { response?: { data?: { message?: string } } })
@@ -147,9 +147,11 @@ export default function TrainModelPage() {
     // Only fire toast when status genuinely transitions to a terminal state
     if (trainingStatus === prev) return;
     if (trainingStatus === 'TRAINED') {
-      toast.success('Training complete! 🎉', 'Your model is ready. You can now generate forecasts.');
+      toast.success('Training complete!', 'Your model is ready. Redirecting to forecasting...');
+      setTimeout(() => router.push('/forecasting'), 2000);
     } else if (trainingStatus === 'FAILED') {
       toast.error('Training failed', 'Check your data and hyperparameter configuration.');
+      // Stay on page so user can fix and retry
     }
   }, [trainingStatus]);
 
@@ -245,7 +247,7 @@ export default function TrainModelPage() {
                 <option value="">Select a pipeline...</option>
                 {pipelines?.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} (v{p.version}) — {p.status === 'COMPLETED' ? '✓ Ready' : p.status}
+                    {p.name} (v{p.version}) -{p.status === 'COMPLETED' ? '✓ Ready' : p.status}
                   </option>
                 ))}
               </select>
@@ -291,23 +293,21 @@ export default function TrainModelPage() {
               </div>
             )}
 
-            {selectedAlgorithm === 'PROPHET' && (
+            {selectedAlgorithm === 'ETS' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Changepoint Prior Scale: {watch('changepoint_prior_scale')}
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Seasonal Periods (4–52)
                 </label>
                 <input
-                  {...register('changepoint_prior_scale')}
-                  type="range"
-                  min={0.001}
-                  max={0.5}
-                  step={0.001}
-                  className="w-full accent-blue-600"
+                  {...register('seasonal_periods')}
+                  type="number"
+                  min={4}
+                  max={52}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <div className="flex justify-between text-xs text-gray-400 mt-1">
-                  <span>0.001 (smooth)</span>
-                  <span>0.5 (flexible)</span>
-                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Number of periods in one seasonal cycle. Use <strong>12</strong> for monthly data, <strong>4</strong> for quarterly.
+                </p>
               </div>
             )}
 

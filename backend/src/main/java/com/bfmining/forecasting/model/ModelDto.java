@@ -59,4 +59,7 @@ public class ModelDto {
 
     /** Current training status. */
     private String status;
+
+    /** Path to the saved model file on the ML service filesystem. */
+    private String modelPath;
 }

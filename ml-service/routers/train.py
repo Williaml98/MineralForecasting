@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from models.arima_model import ArimaModel
+from models.ets_model import ETSModel
 from models.lstm_model import LstmModel
-from models.prophet_model import ProphetModel
 
 router = APIRouter()
 
@@ -41,12 +41,12 @@ class ArimaTrainRequest(BaseModel):
     order: list[int] = [1, 1, 1]  # p, d, q
 
 
-class ProphetTrainRequest(BaseModel):
+class ETSTrainRequest(BaseModel):
     job_id: str
     data: list[dict[str, Any]]
     date_col: str
     value_col: str
-    changepoint_prior_scale: float = 0.05
+    seasonal_periods: int = 12
 
 
 class LstmTrainRequest(BaseModel):
@@ -101,13 +101,18 @@ async def train_arima(request: ArimaTrainRequest):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@router.post("/prophet", response_model=TrainingResponse)
-async def train_prophet(request: ProphetTrainRequest):
-    path = _model_path(request.job_id, "prophet")
+@router.post("/ets", response_model=TrainingResponse)
+async def train_ets(request: ETSTrainRequest):
+    path = _model_path(request.job_id, "ets")
     try:
         df = pd.DataFrame(request.data)
-        model = ProphetModel(changepoint_prior_scale=request.changepoint_prior_scale)
-        metrics = model.fit(df, request.date_col, request.value_col)
+        series = pd.Series(
+            df[request.value_col].values,
+            index=pd.to_datetime(df[request.date_col]),
+            name=request.value_col,
+        )
+        model = ETSModel(seasonal_periods=request.seasonal_periods)
+        metrics = model.fit(series)
         model.save(path)
         _record_job(request.job_id, "completed", metrics, path)
         return TrainingResponse(

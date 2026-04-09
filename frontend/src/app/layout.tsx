@@ -3,7 +3,7 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
-  title: 'BF Mining — Mineral Demand Forecasting',
+  title: 'BF Mining - Mineral Demand Forecasting',
   description: 'AI-Driven Mineral Demand Forecasting System',
 };
 

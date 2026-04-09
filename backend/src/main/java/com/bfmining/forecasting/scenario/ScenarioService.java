@@ -58,12 +58,25 @@ public class ScenarioService {
         Scenario scenario = Scenario.builder()
                 .name(req.getName())
                 .baseForecastId(req.getBaseForecastId())
-                .parametersJson(req.getParametersJson())
+                .parametersJson(req.getParametersJson() != null ? req.getParametersJson() : "{}")
                 .notes(req.getNotes())
                 .createdBy(userId)
                 .createdAt(LocalDateTime.now())
                 .build();
         return toDto(scenarioRepository.save(scenario));
+    }
+
+    /**
+     * Permanently deletes a scenario by its unique identifier.
+     *
+     * @param id the UUID of the scenario to delete
+     * @throws EntityNotFoundException if no scenario with the given id exists
+     */
+    public void deleteScenario(UUID id) {
+        if (!scenarioRepository.existsById(id)) {
+            throw new EntityNotFoundException("Scenario not found with id: " + id);
+        }
+        scenarioRepository.deleteById(id);
     }
 
     /**
