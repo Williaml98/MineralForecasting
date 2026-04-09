@@ -20,4 +20,5 @@ public class UserDto {
     private boolean mustChangePassword;
     private LocalDateTime lastLogin;
     private LocalDateTime createdAt;
+    private String avatarUrl;
 }

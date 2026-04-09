@@ -59,6 +59,10 @@ public class User implements UserDetails {
     @Column(name = "created_by")
     private UUID createdBy;
 
+    /** Base64-encoded profile picture data URL (e.g. "data:image/jpeg;base64,..."). */
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
+    private String avatarUrl;
+
     // --- UserDetails ---
 
     @Override

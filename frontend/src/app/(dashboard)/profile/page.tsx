@@ -3,7 +3,8 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Camera, Loader2 } from 'lucide-react';
 import api from '@/lib/axios';
 import { toast } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/authStore';
@@ -28,12 +29,15 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 /**
- * User profile page with password change form.
+ * User profile page with avatar upload and password change form.
  */
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const [success, setSuccess] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -58,7 +62,46 @@ export default function ProfilePage() {
     }
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image too large', 'Please choose an image under 2 MB.');
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const res = await api.put('/api/users/me/avatar', { avatarUrl: dataUrl });
+      const updated = res.data?.data ?? res.data;
+      if (user) setUser({ ...user, avatarUrl: updated.avatarUrl });
+      toast.success('Profile picture updated', 'Your new avatar is now saved.');
+    } catch {
+      toast.error('Upload failed', 'Could not save your profile picture.');
+    } finally {
+      setAvatarUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   if (!user) return null;
+
+  const initials = user.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <div className="p-6 max-w-2xl space-y-6">
@@ -66,15 +109,55 @@ export default function ProfilePage() {
 
       {/* User info */}
       <Card className="p-6 space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-brand flex items-center justify-center text-white text-xl font-bold">
-            {user.name.charAt(0).toUpperCase()}
+        <div className="flex items-center gap-5">
+          {/* Avatar with upload overlay */}
+          <div className="relative group">
+            <div className="w-20 h-20 rounded-full overflow-hidden bg-brand flex items-center justify-center">
+              {user.avatarUrl ? (
+                <img
+                  src={user.avatarUrl}
+                  alt={user.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-white text-2xl font-bold">{initials}</span>
+              )}
+            </div>
+            {/* Upload overlay */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5 disabled:cursor-wait"
+              title="Change profile picture"
+            >
+              {avatarUploading ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <>
+                  <Camera className="w-5 h-5 text-white" />
+                  <span className="text-white text-[10px] font-medium">Change</span>
+                </>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
           </div>
+
           <div>
             <p className="text-lg font-semibold text-gray-800">{user.name}</p>
             <p className="text-sm text-gray-500">{user.email}</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Click the avatar to upload a new profile picture (JPG, PNG or WebP, max 2 MB)
+            </p>
           </div>
         </div>
+
         <div className="grid grid-cols-2 gap-4 text-sm pt-2 border-t border-gray-100">
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wide">Role</p>

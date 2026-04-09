@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.security.Principal;
+import com.bfmining.forecasting.user.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,9 +40,8 @@ public class PreprocessingController {
     @PreAuthorize("hasAnyRole('ADMIN','ANALYST')")
     public ResponseEntity<PipelineDto> createPipeline(
             @Valid @RequestBody CreatePipelineRequest request,
-            Principal principal) {
-        UUID userId = UUID.fromString(principal.getName());
-        PipelineDto dto = preprocessingService.createPipeline(request, userId);
+            @AuthenticationPrincipal User currentUser) {
+        PipelineDto dto = preprocessingService.createPipeline(request, currentUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
 
@@ -79,8 +79,7 @@ public class PreprocessingController {
     @PreAuthorize("hasAnyRole('ADMIN','ANALYST')")
     public ResponseEntity<PipelineDto> runPipeline(
             @PathVariable UUID pipelineId,
-            Principal principal) {
-        UUID userId = UUID.fromString(principal.getName());
-        return ResponseEntity.ok(preprocessingService.runPipeline(pipelineId, userId));
+            @AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(preprocessingService.runPipeline(pipelineId, currentUser.getId()));
     }
 }

@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -45,10 +47,12 @@ public class Scenario {
     private UUID baseForecastId;
 
     /** JSON string of parameter overrides applied in this scenario, stored as JSONB. */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "parameters_json", columnDefinition = "jsonb")
     private String parametersJson;
 
     /** JSON string of scenario simulation results, stored as JSONB. */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "result_json", columnDefinition = "jsonb")
     private String resultJson;
 

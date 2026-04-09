@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -53,10 +55,12 @@ public class TrainedModel {
     private UUID pipelineId;
 
     /** JSON string of hyperparameter values used during training, stored as JSONB. */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "hyperparams_json", columnDefinition = "jsonb")
     private String hyperparamsJson;
 
     /** JSON string of evaluation metrics produced after training, stored as JSONB. */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metrics_json", columnDefinition = "jsonb")
     private String metricsJson;
 

@@ -10,6 +10,7 @@ import {
   Clock,
   AlertCircle,
   Plus,
+  Trash2,
   TrendingUp,
 } from 'lucide-react';
 import api from '@/lib/axios';
@@ -56,6 +57,15 @@ export default function ForecastingPage() {
       toast.success('Model activated', 'This model is now live for forecasting.');
     },
     onError: () => toast.error('Activation failed', 'Could not activate the model.'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/models/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['models'] });
+      toast.success('Model deleted', 'The model has been permanently removed.');
+    },
+    onError: () => toast.error('Delete failed', 'Could not delete the model.'),
   });
 
   const activeModel = models?.find((m) => m.active);
@@ -186,6 +196,18 @@ export default function ForecastingPage() {
                                 <Zap className="w-4 h-4" />
                               </button>
                             )}
+                            <button
+                              onClick={() => {
+                                if (confirm(`Delete model "${m.name}"? This cannot be undone.`)) {
+                                  deleteMutation.mutate(m.id);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                              title="Delete model"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </td>
                       </tr>

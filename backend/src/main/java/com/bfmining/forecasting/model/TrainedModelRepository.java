@@ -28,4 +28,12 @@ public interface TrainedModelRepository extends JpaRepository<TrainedModel, UUID
      * @return an Optional containing the active model, or empty if none is active
      */
     Optional<TrainedModel> findFirstByIsActiveTrue();
+
+    /**
+     * Checks whether a model with the given name already exists.
+     *
+     * @param name the model name to check
+     * @return true if a model with that name exists
+     */
+    boolean existsByName(String name);
 }

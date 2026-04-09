@@ -92,6 +92,38 @@ public class UserService {
     }
 
     /**
+     * Reactivates a previously deactivated user account.
+     *
+     * @param userId the user to reactivate
+     * @return the updated user DTO
+     */
+    @Transactional
+    @AuditAction("USER_REACTIVATE")
+    public UserDto reactivateUser(UUID userId) {
+        User user = findById(userId);
+        user.setActive(true);
+        return toDto(userRepository.save(user));
+    }
+
+    /**
+     * Updates the display name of a user.
+     *
+     * @param userId  the user to update
+     * @param newName the new display name
+     * @return the updated user DTO
+     */
+    @Transactional
+    @AuditAction("USER_UPDATE_NAME")
+    public UserDto updateName(UUID userId, String newName) {
+        if (newName == null || newName.isBlank()) {
+            throw new IllegalArgumentException("Name cannot be blank");
+        }
+        User user = findById(userId);
+        user.setName(newName.trim());
+        return toDto(userRepository.save(user));
+    }
+
+    /**
      * Changes the role of a user.
      *
      * @param userId  the user ID
@@ -170,6 +202,20 @@ public class UserService {
                 """.formatted(user.getName(), user.getEmail(), tempPassword, frontendUrl);
     }
 
+    /**
+     * Updates the profile picture for a user.
+     *
+     * @param userId    the user to update
+     * @param avatarUrl base64 data URL of the image (e.g. "data:image/jpeg;base64,...")
+     * @return the updated user DTO
+     */
+    @Transactional
+    public UserDto updateAvatar(UUID userId, String avatarUrl) {
+        User user = findById(userId);
+        user.setAvatarUrl(avatarUrl);
+        return toDto(userRepository.save(user));
+    }
+
     /** Maps a User entity to its DTO representation. */
     public UserDto toDto(User user) {
         return UserDto.builder()
@@ -181,6 +227,7 @@ public class UserService {
                 .mustChangePassword(user.isMustChangePassword())
                 .lastLogin(user.getLastLogin())
                 .createdAt(user.getCreatedAt())
+                .avatarUrl(user.getAvatarUrl())
                 .build();
     }
 }

@@ -40,7 +40,9 @@ public class AuditService {
     public Page<AuditLog> search(UUID userId, String actionType,
                                   LocalDateTime from, LocalDateTime to,
                                   Pageable pageable) {
-        return repo.search(userId, actionType, from, to, pageable);
+        // Pass userId as String so the native query can cast it via ::uuid
+        String userIdStr = userId != null ? userId.toString() : null;
+        return repo.search(userIdStr, actionType, from, to, pageable);
     }
 
     /** Returns summary statistics for the audit dashboard. */

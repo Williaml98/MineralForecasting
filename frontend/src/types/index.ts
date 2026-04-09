@@ -10,6 +10,7 @@ export interface User {
   mustChangePassword: boolean;
   lastLogin?: string;
   createdAt: string;
+  avatarUrl?: string;
 }
 
 export interface Dataset {

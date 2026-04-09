@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -45,10 +47,12 @@ public class Forecast {
     private int horizonMonths;
 
     /** JSON array of forecasted values, stored as JSONB. */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "forecast_json", columnDefinition = "jsonb")
     private String forecastJson;
 
     /** JSON array of confidence interval bounds, stored as JSONB. */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "confidence_intervals_json", columnDefinition = "jsonb")
     private String confidenceIntervalsJson;
 

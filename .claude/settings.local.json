@@ -23,7 +23,9 @@
       "Bash(where python:*)",
       "Bash(where py:*)",
       "Read(//c/Users/HP/AppData/Local/Programs/Python//**)",
-      "Bash(ls /c/Python*)"
+      "Bash(ls /c/Python*)",
+      "Bash(xargs grep:*)",
+      "Bash(xargs ls:*)"
     ]
   }
 }
