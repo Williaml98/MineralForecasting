@@ -107,6 +107,51 @@ public class ModelService {
     }
 
     /**
+     * Retrains an existing model using new (or the same) dataset/pipeline while
+     * preserving the original algorithm and hyperparameters. Creates a new model
+     * record so the original is kept for comparison.
+     *
+     * @param sourceId the UUID of the model to base retraining on
+     * @param req      the retrain request with optional new datasetId/pipelineId
+     * @param userId   the UUID of the user requesting retraining
+     * @return the newly created model DTO with status "TRAINING"
+     * @throws EntityNotFoundException if the source model does not exist
+     */
+    @AuditAction("MODEL_TRAIN")
+    public ModelDto retrainModel(UUID sourceId, RetrainModelRequest req, UUID userId) {
+        TrainedModel source = modelRepository.findById(sourceId)
+                .orElseThrow(() -> new EntityNotFoundException("Model not found with id: " + sourceId));
+
+        String suffix = (req.getNameSuffix() != null && !req.getNameSuffix().isBlank())
+                ? req.getNameSuffix()
+                : "retrained";
+        String newName = source.getName() + " (" + suffix + ")";
+
+        // Ensure unique name by appending a counter if needed
+        int counter = 1;
+        String candidateName = newName;
+        while (modelRepository.existsByName(candidateName)) {
+            candidateName = newName + " " + counter++;
+        }
+
+        TrainedModel retrained = TrainedModel.builder()
+                .name(candidateName)
+                .algorithm(source.getAlgorithm())
+                .datasetId(req.getDatasetId() != null ? req.getDatasetId() : source.getDatasetId())
+                .pipelineId(req.getPipelineId() != null ? req.getPipelineId() : source.getPipelineId())
+                .hyperparamsJson(source.getHyperparamsJson())
+                .trainedBy(userId)
+                .trainedAt(LocalDateTime.now())
+                .jobId(UUID.randomUUID().toString())
+                .status("TRAINING")
+                .build();
+
+        TrainedModel saved = modelRepository.save(retrained);
+        trainingSimulator.callMlServiceAndComplete(saved.getId());
+        return toDto(saved);
+    }
+
+    /**
      * Permanently deletes a trained model by its identifier.
      *
      * @param id the UUID of the model to delete

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Upload, Eye, Trash2, FileText, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Upload, Eye, Trash2, FileText, AlertCircle, CheckCircle, Clock, Globe, Download } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/axios';
 import { toast } from '@/hooks/useToast';
@@ -39,6 +39,10 @@ export default function DataManagementPage() {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Dataset | null>(null);
+  const [showWbModal, setShowWbModal] = useState(false);
+  const [wbIndicator, setWbIndicator] = useState('PCOPPER');
+  const [wbStartYear, setWbStartYear] = useState(2010);
+  const [wbName, setWbName] = useState('');
 
   const { data: datasets, isLoading } = useQuery<Dataset[]>({
     queryKey: ['datasets'],
@@ -73,6 +77,24 @@ export default function DataManagementPage() {
       setUploadMessage(msg);
       setUploadProgress(null);
       toast.error('Upload failed', msg);
+    },
+  });
+
+  const wbImportMutation = useMutation({
+    mutationFn: () =>
+      api.post('/api/external-data/import', null, {
+        params: { indicator: wbIndicator, startYear: wbStartYear, name: wbName || undefined },
+      }).then((r) => r.data?.data ?? r.data),
+    onSuccess: (result: { name: string; rowCount: number }) => {
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      toast.success('Import successful', `"${result.name}" imported with ${result.rowCount} rows.`);
+      setShowWbModal(false);
+      setWbName('');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? 'Could not import from World Bank. Check your internet connection.';
+      toast.error('Import failed', msg);
     },
   });
 
@@ -123,13 +145,22 @@ export default function DataManagementPage() {
           <p className="text-sm text-gray-500 mt-1">Upload and manage mineral forecast datasets</p>
         </div>
         {canWrite && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-            Upload Dataset
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowWbModal(true)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              <Globe className="w-4 h-4" />
+              Import from World Bank
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Dataset
+            </button>
+          </div>
         )}
       </div>
 
@@ -274,6 +305,76 @@ export default function DataManagementPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* World Bank import modal */}
+      <Modal isOpen={showWbModal} onClose={() => setShowWbModal(false)} title="Import from World Bank">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+            <Globe className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">World Bank Open Data</p>
+              <p className="text-xs text-blue-700 mt-0.5">
+                Fetches free commodity price data from the World Bank API and saves it as a validated dataset ready for training. No API key required.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Mineral / Commodity</label>
+            <select
+              value={wbIndicator}
+              onChange={(e) => setWbIndicator(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            >
+              {[
+                { code: 'PCOPPER', label: 'Copper (USD/mt)' },
+                { code: 'PALUM',   label: 'Aluminum (USD/mt)' },
+                { code: 'PNICK',   label: 'Nickel (USD/mt)' },
+                { code: 'PZINC',   label: 'Zinc (USD/mt)' },
+                { code: 'PLEAD',   label: 'Lead (USD/mt)' },
+                { code: 'PTIN',    label: 'Tin (USD/mt)' },
+                { code: 'PIRON',   label: 'Iron Ore (USD/dmt)' },
+                { code: 'PGOLD',   label: 'Gold (USD/troy oz)' },
+                { code: 'PSILVER', label: 'Silver (USD/troy oz)' },
+                { code: 'PCOBALT', label: 'Cobalt (USD/mt)' },
+              ].map((i) => (
+                <option key={i.code} value={i.code}>{i.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Start Year</label>
+            <input
+              type="number"
+              value={wbStartYear}
+              onChange={(e) => setWbStartYear(Number(e.target.value))}
+              min={1990}
+              max={2024}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dataset Name (optional)</label>
+            <input
+              value={wbName}
+              onChange={(e) => setWbName(e.target.value)}
+              placeholder={`WorldBank_${wbIndicator}_${wbStartYear}`}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+
+          <button
+            disabled={wbImportMutation.isPending}
+            onClick={() => wbImportMutation.mutate()}
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+          >
+            <Download className={`w-4 h-4 ${wbImportMutation.isPending ? 'animate-pulse' : ''}`} />
+            {wbImportMutation.isPending ? 'Importing…' : 'Import Dataset'}
+          </button>
+        </div>
+      </Modal>
 
       {/* Delete confirmation modal */}
       <Modal

@@ -94,4 +94,22 @@ public class ModelController {
         modelService.deleteModel(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Retrains an existing model with a new dataset and/or pipeline, preserving
+     * the original algorithm and hyperparameters.
+     *
+     * @param id      the UUID of the model to retrain
+     * @param request a request containing the new datasetId and pipelineId
+     * @return HTTP 201 with the newly created {@link ModelDto}
+     */
+    @PostMapping("/{id}/retrain")
+    @PreAuthorize("hasAnyRole('ADMIN','ANALYST')")
+    public ResponseEntity<ModelDto> retrainModel(
+            @PathVariable UUID id,
+            @RequestBody RetrainModelRequest request,
+            @AuthenticationPrincipal User currentUser) {
+        ModelDto dto = modelService.retrainModel(id, request, currentUser.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
+    }
 }
