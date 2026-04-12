@@ -14,13 +14,26 @@ import {
   Trash2,
   TrendingUp,
   FileDown,
+  RefreshCw,
+  BarChart3,
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import api from '@/lib/axios';
 import { toast } from '@/hooks/useToast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { TableSkeleton } from '@/components/ui/LoadingSkeleton';
-import type { TrainedModel } from '@/types';
+import { Modal } from '@/components/ui/Modal';
+import type { TrainedModel, Dataset, Pipeline } from '@/types';
 
 const statusConfig: Record<string, {
   variant: 'default' | 'success' | 'warning' | 'danger' | 'info';
@@ -56,6 +69,20 @@ function parseMetricRaw(metricsJson: string | undefined, key: string): number | 
 export default function ForecastingPage() {
   const queryClient = useQueryClient();
   const [exportingReport, setExportingReport] = useState(false);
+  const [showChart, setShowChart] = useState(false);
+  const [retrainModel, setRetrainModel] = useState<TrainedModel | null>(null);
+  const [retrainDatasetId, setRetrainDatasetId] = useState('');
+  const [retrainPipelineId, setRetrainPipelineId] = useState('');
+
+  const { data: datasets = [] } = useQuery<Dataset[]>({
+    queryKey: ['datasets'],
+    queryFn: () => api.get('/api/datasets').then((r) => r.data?.data ?? r.data ?? []),
+  });
+
+  const { data: pipelines = [] } = useQuery<Pipeline[]>({
+    queryKey: ['pipelines'],
+    queryFn: () => api.get('/api/preprocessing/pipelines').then((r) => r.data?.data ?? r.data ?? []),
+  });
 
   const { data: models, isLoading } = useQuery<TrainedModel[]>({
     queryKey: ['models'],
@@ -80,7 +107,34 @@ export default function ForecastingPage() {
     onError: () => toast.error('Delete failed', 'Could not delete the model.'),
   });
 
+  const retrainMutation = useMutation({
+    mutationFn: ({ id, datasetId, pipelineId }: { id: string; datasetId: string; pipelineId: string }) =>
+      api.post(`/api/models/${id}/retrain`, {
+        datasetId: datasetId || null,
+        pipelineId: pipelineId || null,
+      }).then((r) => r.data?.data ?? r.data),
+    onSuccess: (m: TrainedModel) => {
+      queryClient.invalidateQueries({ queryKey: ['models'] });
+      toast.success('Retraining started', `"${m.name}" is being retrained.`);
+      setRetrainModel(null);
+      setRetrainDatasetId('');
+      setRetrainPipelineId('');
+    },
+    onError: () => toast.error('Retrain failed', 'Could not start retraining. Please try again.'),
+  });
+
   const activeModel = models?.find((m) => m.active);
+
+  // Prepare chart data from trained models only
+  const chartData = (models ?? [])
+    .filter((m) => m.status === 'TRAINED')
+    .map((m) => ({
+      name: m.name.length > 12 ? m.name.slice(0, 12) + '…' : m.name,
+      MAE: parseMetricRaw(m.metricsJson, 'mae') ?? 0,
+      RMSE: parseMetricRaw(m.metricsJson, 'rmse') ?? 0,
+      MAPE: parseMetricRaw(m.metricsJson, 'mape') ?? 0,
+      algorithm: m.algorithm,
+    }));
 
   const exportReport = async () => {
     if (!models || models.length === 0) return;
@@ -193,6 +247,59 @@ export default function ForecastingPage() {
         </div>
       )}
 
+      {/* Visual metric comparison chart (toggle) */}
+      {chartData.length >= 2 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-blue-500" />
+                Metric Comparison Chart
+              </CardTitle>
+              <button
+                onClick={() => setShowChart((v) => !v)}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                {showChart ? 'Hide chart' : 'Show chart'}
+              </button>
+            </div>
+          </CardHeader>
+          {showChart && (
+            <CardContent>
+              <p className="text-xs text-gray-500 mb-4">
+                Lower is better for all metrics. MAE and RMSE are in the same units as demand;
+                MAPE is a percentage. Use these to pick which model to activate.
+              </p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {(['MAE', 'RMSE', 'MAPE'] as const).map((metric) => (
+                  <div key={metric}>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 text-center">
+                      {metric}{metric === 'MAPE' ? ' (%)' : ''}
+                    </p>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          formatter={(v: number) => v.toFixed(4)}
+                          contentStyle={{ fontSize: '11px', borderRadius: '8px' }}
+                        />
+                        <Bar
+                          dataKey={metric}
+                          fill={metric === 'MAE' ? '#3b82f6' : metric === 'RMSE' ? '#8b5cf6' : '#f59e0b'}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
       {/* Model comparison table */}
       <Card>
         <CardHeader>
@@ -276,6 +383,7 @@ export default function ForecastingPage() {
                             <Link
                               href={`/forecasting/${m.id}`}
                               className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              title="View details"
                             >
                               <Eye className="w-4 h-4" />
                             </Link>
@@ -287,6 +395,19 @@ export default function ForecastingPage() {
                                 title="Activate model"
                               >
                                 <Zap className="w-4 h-4" />
+                              </button>
+                            )}
+                            {m.status === 'TRAINED' && (
+                              <button
+                                onClick={() => {
+                                  setRetrainModel(m);
+                                  setRetrainDatasetId(m.datasetId ?? '');
+                                  setRetrainPipelineId(m.pipelineId ?? '');
+                                }}
+                                className="p-1.5 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors"
+                                title="Retrain with new data"
+                              >
+                                <RefreshCw className="w-4 h-4" />
                               </button>
                             )}
                             <button
@@ -312,6 +433,68 @@ export default function ForecastingPage() {
           )}
         </CardContent>
       </Card>
+      {/* Retrain modal */}
+      <Modal
+        isOpen={!!retrainModel}
+        onClose={() => setRetrainModel(null)}
+        title={`Retrain: ${retrainModel?.name ?? ''}`}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            A new model will be created using the same algorithm
+            (<strong>{retrainModel?.algorithm}</strong>) and hyperparameters.
+            Select a dataset and pipeline - leave unchanged to retrain on the same data.
+          </p>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dataset</label>
+            <select
+              value={retrainDatasetId}
+              onChange={(e) => setRetrainDatasetId(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">Same as original</option>
+              {datasets.filter((d) => d.status === 'VALIDATED').map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name} (v{d.version})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Pipeline</label>
+            <select
+              value={retrainPipelineId}
+              onChange={(e) => setRetrainPipelineId(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">Same as original</option>
+              {pipelines.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} - {p.status}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            disabled={retrainMutation.isPending}
+            onClick={() => {
+              if (!retrainModel) return;
+              retrainMutation.mutate({
+                id: retrainModel.id,
+                datasetId: retrainDatasetId,
+                pipelineId: retrainPipelineId,
+              });
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-purple-600 text-white py-2 rounded-lg text-sm hover:bg-purple-700 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${retrainMutation.isPending ? 'animate-spin' : ''}`} />
+            {retrainMutation.isPending ? 'Starting retrain…' : 'Start Retraining'}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

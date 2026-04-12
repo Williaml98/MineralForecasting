@@ -26,7 +26,27 @@
       "Bash(ls /c/Python*)",
       "Bash(xargs grep:*)",
       "Bash(xargs ls:*)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Bash(pandoc \"C:\\\\Users\\\\HP\\\\Downloads\\\\24423_William.docx\" -t markdown)",
+      "Bash(python3 -c ':*)",
+      "Bash(python -c \"print\\('hello'\\)\")",
+      "Bash(py -c \"print\\('hello'\\)\")",
+      "Bash(mkdir -p \"C:/tmp_docx_extract\")",
+      "Bash(cp \"C:/Users/HP/Downloads/24423_William.docx\" \"C:/tmp_docx_extract/doc.zip\")",
+      "Read(//c//**)",
+      "Bash(unzip -o doc.zip -d unpacked)",
+      "Bash(python \"C:/tmp_docx_extract/extract.py\")",
+      "Read(//c/Users/HP/Downloads/**)",
+      "Bash(node -e \"require\\('docx'\\); console.log\\('docx available'\\);\")",
+      "Bash(npm install:*)",
+      "Bash(node -e \"console.log\\(process.env.USERPROFILE || process.env.HOME\\)\")",
+      "Bash(node -e \"const fs = require\\('fs'\\); console.log\\(fs.readdirSync\\('C:/Users/HP/Downloads'\\).slice\\(0,10\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(node generate_bfmining_report.js)",
+      "Bash(node -e \"const fs=require\\('fs'\\); const s=fs.statSync\\('C:/Users/HP/Downloads/BFMining_FinalYearReport.docx'\\); console.log\\('File exists:', s.size, 'bytes', new Date\\(s.mtime\\).toISOString\\(\\)\\)\")",
+      "Bash(python -c \"import matplotlib; import PIL; print\\('matplotlib:', matplotlib.__version__\\); from PIL import Image; print\\('PIL OK'\\)\")",
+      "Bash(python -c \"import matplotlib.patches as mpatches; import matplotlib.pyplot as plt; print\\('patches OK'\\)\")",
+      "Bash(python generate_diagrams.py)",
+      "Bash(python -c \"import matplotlib.patches as p; print\\(list\\(p.ArrowStyle._style_list.keys\\(\\)\\)\\)\")"
     ]
   }
 }
