@@ -40,7 +40,7 @@ export default function DataManagementPage() {
   const [uploadMessage, setUploadMessage] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Dataset | null>(null);
   const [showWbModal, setShowWbModal] = useState(false);
-  const [wbIndicator, setWbIndicator] = useState('PCOPPER');
+  const [wbIndicator, setWbIndicator] = useState('PCOPPUSDM');
   const [wbStartYear, setWbStartYear] = useState(2010);
   const [wbName, setWbName] = useState('');
 
@@ -327,16 +327,13 @@ export default function DataManagementPage() {
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
             >
               {[
-                { code: 'PCOPPER', label: 'Copper (USD/mt)' },
-                { code: 'PALUM',   label: 'Aluminum (USD/mt)' },
-                { code: 'PNICK',   label: 'Nickel (USD/mt)' },
-                { code: 'PZINC',   label: 'Zinc (USD/mt)' },
-                { code: 'PLEAD',   label: 'Lead (USD/mt)' },
-                { code: 'PTIN',    label: 'Tin (USD/mt)' },
-                { code: 'PIRON',   label: 'Iron Ore (USD/dmt)' },
-                { code: 'PGOLD',   label: 'Gold (USD/troy oz)' },
-                { code: 'PSILVER', label: 'Silver (USD/troy oz)' },
-                { code: 'PCOBALT', label: 'Cobalt (USD/mt)' },
+                { code: 'PCOPPUSDM',  label: 'Copper (USD/mt)' },
+                { code: 'PALUMUSDM',  label: 'Aluminum (USD/mt)' },
+                { code: 'PNICKUSDM',  label: 'Nickel (USD/mt)' },
+                { code: 'PZINCUSDM',  label: 'Zinc (USD/mt)' },
+                { code: 'PLEADUSDM',  label: 'Lead (USD/mt)' },
+                { code: 'PTINUSDM',   label: 'Tin (USD/mt)' },
+                { code: 'PIORECRUSDM','label': 'Iron Ore (USD/dry mt)' },
               ].map((i) => (
                 <option key={i.code} value={i.code}>{i.label}</option>
               ))}

@@ -3,15 +3,17 @@ package com.bfmining.forecasting.integration;
 import com.bfmining.forecasting.dataset.Dataset;
 import com.bfmining.forecasting.dataset.DatasetRepository;
 import com.bfmining.forecasting.dataset.DatasetStatus;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.io.BufferedReader;
 import java.io.FileWriter;
+import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -23,9 +25,15 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Service for fetching commodity data from the World Bank Open Data API.
- * Uses the free, unauthenticated endpoint:
- * https://api.worldbank.org/v2/en/indicator/{code}?format=json&per_page=1000&mrv=200
+ * Service for fetching commodity price data from the St. Louis Fed FRED API.
+ *
+ * FRED provides free, unauthenticated access to World Bank Pink Sheet monthly
+ * commodity prices via simple CSV download:
+ *   https://fred.stlouisfed.org/graph/fredgraph.csv?id={SERIES_ID}
+ *
+ * The CSV has two columns: observation_date (YYYY-MM-DD), {SERIES_ID} (value).
+ * Confirmed working series IDs (verified live):
+ *   PCOPPUSDM, PALUMUSDM, PNICKUSDM, PZINCUSDM, PLEADUSDM, PTINUSDM, PIORECRUSDM
  */
 @Service
 @RequiredArgsConstructor
@@ -34,91 +42,91 @@ public class ExternalDataService {
 
     private final RestTemplate restTemplate;
     private final DatasetRepository datasetRepository;
-    private final ObjectMapper objectMapper;
 
     @Value("${app.upload-dir:uploads}")
     private String uploadDir;
 
-    /** World Bank API base URL. */
-    private static final String WB_API_BASE = "https://api.worldbank.org/v2/en/indicator";
+    /** FRED CSV download base URL – no API key required. */
+    private static final String FRED_CSV_BASE =
+        "https://fred.stlouisfed.org/graph/fredgraph.csv?id=";
 
     /**
-     * Returns the list of World Bank commodity indicators relevant to minerals.
-     * These are well-known codes from the World Bank Commodity Markets data.
+     * Available mineral commodity indicators.
+     * Each "code" is a verified FRED series ID (Pink Sheet monthly prices).
+     * All confirmed to return 400+ months of data with no authentication.
      */
     public List<Map<String, String>> getAvailableIndicators() {
         return List.of(
-            Map.of("code", "PCOPPER",   "label", "Copper (USD/mt)",             "source", "World Bank"),
-            Map.of("code", "PALUM",     "label", "Aluminum (USD/mt)",            "source", "World Bank"),
-            Map.of("code", "PNICK",     "label", "Nickel (USD/mt)",              "source", "World Bank"),
-            Map.of("code", "PZINC",     "label", "Zinc (USD/mt)",                "source", "World Bank"),
-            Map.of("code", "PLEAD",     "label", "Lead (USD/mt)",                "source", "World Bank"),
-            Map.of("code", "PTIN",      "label", "Tin (USD/mt)",                 "source", "World Bank"),
-            Map.of("code", "PIRON",     "label", "Iron Ore (USD/dmt)",           "source", "World Bank"),
-            Map.of("code", "PGOLD",     "label", "Gold (USD/troy oz)",           "source", "World Bank"),
-            Map.of("code", "PSILVER",   "label", "Silver (USD/troy oz)",         "source", "World Bank"),
-            Map.of("code", "PCOBALT",   "label", "Cobalt (USD/mt)",              "source", "World Bank"),
-            Map.of("code", "PMANG",     "label", "Manganese Ore (USD/dmtu)",     "source", "World Bank"),
-            Map.of("code", "PCHROM",    "label", "Chromium Ore (USD/mt)",        "source", "World Bank")
+            Map.of("code", "PCOPPUSDM",  "label", "Copper (USD/mt)",        "source", "FRED / World Bank"),
+            Map.of("code", "PALUMUSDM",  "label", "Aluminum (USD/mt)",      "source", "FRED / World Bank"),
+            Map.of("code", "PNICKUSDM",  "label", "Nickel (USD/mt)",        "source", "FRED / World Bank"),
+            Map.of("code", "PZINCUSDM",  "label", "Zinc (USD/mt)",          "source", "FRED / World Bank"),
+            Map.of("code", "PLEADUSDM",  "label", "Lead (USD/mt)",          "source", "FRED / World Bank"),
+            Map.of("code", "PTINUSDM",   "label", "Tin (USD/mt)",           "source", "FRED / World Bank"),
+            Map.of("code", "PIORECRUSDM","label", "Iron Ore (USD/dry mt)",  "source", "FRED / World Bank")
         );
     }
 
     /**
-     * Fetches monthly commodity price data from the World Bank API.
+     * Fetches monthly commodity price data from FRED.
      *
-     * @param indicator World Bank commodity code (e.g. "PCOPPER")
-     * @param startYear inclusive start year
-     * @param endYear   inclusive end year (0 = current year)
-     * @return map with keys: indicator, data (list of {date, value}), rowCount, dateRange
+     * @param indicator FRED series ID (e.g. "PCOPPUSDM")
+     * @param startYear inclusive start year filter (rows before this year are dropped)
+     * @param endYear   inclusive end year filter (0 = current year)
+     * @return map with keys: indicator, data (list of {date, demand}), rowCount, dateRange
      */
     public Map<String, Object> fetchWorldBankData(String indicator, int startYear, int endYear) {
         int resolvedEndYear = endYear == 0 ? LocalDate.now().getYear() : endYear;
-        String url = String.format(
-            "%s/%s?format=json&per_page=500&date=%d:%d",
-            WB_API_BASE, indicator.toUpperCase(), startYear, resolvedEndYear
-        );
+        String url = FRED_CSV_BASE + indicator.toUpperCase();
 
-        log.info("Fetching World Bank data: {}", url);
+        log.info("Fetching FRED commodity data: {} (years {}-{})", url, startYear, resolvedEndYear);
 
         List<Map<String, Object>> rows = new ArrayList<>();
         try {
-            String raw = restTemplate.getForObject(url, String.class);
-            JsonNode root = objectMapper.readTree(raw);
-            // World Bank returns a 2-element JSON array: [metadata, dataArray]
-            if (root.isArray() && root.size() == 2) {
-                JsonNode dataArray = root.get(1);
-                if (dataArray != null && dataArray.isArray()) {
-                    for (JsonNode item : dataArray) {
-                        JsonNode valueNode = item.get("value");
-                        JsonNode dateNode = item.get("date");
-                        if (valueNode != null && !valueNode.isNull() && dateNode != null) {
-                            Map<String, Object> row = new LinkedHashMap<>();
-                            row.put("date", dateNode.asText() + "-01");
-                            row.put("demand", valueNode.asDouble());
-                            row.put("source", "World Bank");
-                            row.put("indicator", indicator);
-                            rows.add(row);
-                        }
-                    }
+            String csv = restTemplate.getForObject(url, String.class);
+            if (csv == null || csv.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "FRED returned empty response for series: " + indicator);
+            }
+            // Parse CSV: skip header, filter by year, skip "." (missing) values
+            try (BufferedReader br = new BufferedReader(new StringReader(csv))) {
+                String line = br.readLine(); // skip header
+                while ((line = br.readLine()) != null) {
+                    String[] parts = line.split(",", 2);
+                    if (parts.length < 2) continue;
+                    String date  = parts[0].trim();   // "YYYY-MM-DD"
+                    String value = parts[1].trim();   // numeric or "."
+                    if (value.equals(".") || value.isEmpty()) continue;
+                    int year = Integer.parseInt(date.substring(0, 4));
+                    if (year < startYear || year > resolvedEndYear) continue;
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("date",      date);
+                    row.put("demand",    Double.parseDouble(value));
+                    row.put("source",    "FRED / World Bank Pink Sheet");
+                    row.put("indicator", indicator);
+                    rows.add(row);
                 }
             }
+        } catch (ResponseStatusException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Failed to fetch World Bank data for indicator {}: {}", indicator, e.getMessage());
-            throw new RuntimeException("Failed to fetch World Bank data: " + e.getMessage(), e);
+            log.error("Failed to fetch FRED data for {}: {}", indicator, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                "Could not fetch data from FRED for series '" + indicator + "': " + e.getMessage());
         }
 
-        // Sort by date ascending
-        rows.sort((a, b) -> String.valueOf(a.get("date")).compareTo(String.valueOf(b.get("date"))));
-
+        // Already sorted ascending from FRED – just compute summary
         String dateRange = rows.isEmpty() ? "N/A"
             : rows.get(0).get("date") + " to " + rows.get(rows.size() - 1).get("date");
 
+        log.info("FRED returned {} rows for {} ({})", rows.size(), indicator, dateRange);
+
         return Map.of(
             "indicator", indicator,
-            "data", rows,
-            "rowCount", rows.size(),
+            "data",      rows,
+            "rowCount",  rows.size(),
             "dateRange", dateRange,
-            "source", "World Bank Open Data API"
+            "source",    "FRED / World Bank Pink Sheet"
         );
     }
 
@@ -140,7 +148,11 @@ public class ExternalDataService {
         List<Map<String, Object>> rows = (List<Map<String, Object>>) fetched.get("data");
 
         if (rows == null || rows.isEmpty()) {
-            throw new RuntimeException("No data returned from World Bank for indicator: " + indicator);
+            throw new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "No data returned from World Bank for indicator '" + indicator +
+                "'. Verify the indicator code and date range."
+            );
         }
 
         // Write CSV to the uploads directory
